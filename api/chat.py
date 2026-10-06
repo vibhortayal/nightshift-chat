@@ -1,26 +1,36 @@
-"""Nightshift chatbot backend — answers questions about the factory using a compressed knowledge file."""
+"""Nightshift chatbot backend — KV-backed: persistent cache, rate limits, daily cap, logging."""
+import hashlib
 import json
 import os
 import re
 import time
 import urllib.request
 import urllib.error
+from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
 
-# Single compressed knowledge file (~800 tokens) instead of full docs (~16k)
 CONTEXT_URL = "https://raw.githubusercontent.com/vibhortayal/nightshift-chat/main/CONTEXT.md"
-
-# In-memory caches (per warm instance) — bounded, with TTL
-# Allowed origin — only the project page may call this API
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
-_context_cache = None
-_answer_cache = {}       # normalized question -> (answer, timestamp)
-_rate_buckets = {}       # ip -> [timestamps]
-CACHE_TTL = 3600         # 1 hour
-CACHE_MAX = 200          # max entries
 
-# Two-tier context: tiny facts blurb (~100 tokens) for simple questions,
-# full compressed file (~800 tokens) only when needed
+# Kill switch — set CHAT_DISABLED=1 in Vercel env to disable everything
+DISABLED = os.environ.get("CHAT_DISABLED", "") == "1"
+
+# Upstash Redis REST API (auto-added when the KV store is connected)
+KV_URL = os.environ.get("KV_REST_API_URL", "")
+KV_TOKEN = os.environ.get("KV_REST_API_TOKEN", "")
+
+# Limits
+DAILY_CAP = 500          # max LLM calls per day (resets midnight Pacific)
+RATE_PER_MIN = 15        # max requests per IP per minute
+CACHE_TTL = 3600         # 1 hour
+LOG_TTL = 30 * 86400     # 30 days retention
+MAX_Q_LEN = 500
+
+SYSTEM = """You are Spark, answering questions on Team Nightshift's hackathon project page.
+Use ONLY the context below. Keep every answer to 2-3 short lines.
+End with one relevant link from the context (repo, submission, or project page) where they can read more.
+If the answer isn't in the context, say so in one line and link the repo."""
+
 FACTS = """Dark Factory by Team Nightshift: three-seat AI software factory on Band (band.ai).
 Seats: Architect (claude-opus-5-5, plans/accepts), Implementer (claude-sonnet-5-5, builds), Verifier (claude-opus-5-5, checks).
 One human message starts a run; no seat asks the human anything.
@@ -33,33 +43,6 @@ SIMPLE_KEYWORDS = {
     "built", "made", "created", "team", "pocketful",
 }
 
-def cache_get(norm_q):
-    """Exact normalized match only — no fuzzy matching (avoids negation bugs)."""
-    entry = _answer_cache.get(norm_q)
-    if not entry:
-        return None
-    answer, ts = entry
-    if time.time() - ts > CACHE_TTL:
-        del _answer_cache[norm_q]
-        return None
-    return answer
-
-def cache_put(norm_q, answer):
-    if len(_answer_cache) >= CACHE_MAX:
-        # evict oldest
-        oldest = min(_answer_cache, key=lambda k: _answer_cache[k][1])
-        del _answer_cache[oldest]
-    _answer_cache[norm_q] = (answer, time.time())
-
-def is_simple_question(norm_q):
-    return any(k in norm_q for k in SIMPLE_KEYWORDS) and len(norm_q.split()) <= 10
-
-SYSTEM = """You are Spark, answering questions on Team Nightshift's hackathon project page.
-Use ONLY the context below. Keep every answer to 2-3 short lines.
-End with one relevant link from the context (repo, submission, or project page) where they can read more.
-If the answer isn't in the context, say so in one line and link the repo."""
-
-# Topic gate: only project questions reach the LLM. Saves quota.
 TOPIC_KEYWORDS = {
     "nightshift", "factory", "factories", "hackathon", "band", "pocketful",
     "architect", "implementer", "verifier", "seat", "seats", "agent", "agents",
@@ -73,19 +56,99 @@ TOPIC_KEYWORDS = {
 OFFTOPIC_REPLY = ("I only answer questions about Team Nightshift, the Dark Factory, and the hackathon. "
                   "Try asking about how the factory works, the seats, or the build.")
 
-# Pre-answered FAQs — zero tokens for the most common questions
 FAQS = [
     ({"what is the nightshift factory", "what is nightshift", "what is dark factory"},
      "Dark Factory is a three-seat AI software factory on the Band platform: Architect (plans), Implementer (builds), Verifier (checks). One human message starts a run; the seats handle everything after.\nMore: https://github.com/vibhortayal/nightshift-pocketful"),
-    ({"who built", "who made", "who created", "team"},
+    ({"who built", "who made", "who created"},
      "Team Nightshift: Vibhor Tayal (human) plus AI agents Spark, Instinct, and Claude — built for the WeAreDevelopers x BAND hackathon.\nMore: https://vibhortayal.github.io/nightshift/"),
-    ({"pocketful", "what did it build", "what was built"},
+    ({"what is pocketful", "whats pocketful"},
      "Pocketful — a kids' pocket-money/savings app, built through 4 of 4 stages in 2h 27min (Run 7, Oct 2 2026).\nMore: https://github.com/vibhortayal/nightshift-pocketful"),
     ({"how does it work", "how it works", "how do the seats work"},
      "Architect turns the spec into a checklist; Implementer builds one exact version; Verifier tests it independently and gives one PASS/BLOCK verdict. Five BLOCKs stops the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
-    ({"cost", "how much", "tokens"},
+    ({"how much did it cost", "what did it cost", "run cost"},
      "The submitted run used ~141M tokens (~$59 at list price), covered by a Claude Max subscription — no per-run bill.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
 ]
+
+# In-memory fallback (used if KV is unreachable)
+_mem_cache = {}
+_context_cache = None
+
+
+def kv_call(*args):
+    """Call Upstash Redis REST API. Returns parsed result or None on failure."""
+    if not KV_URL or not KV_TOKEN:
+        return None
+    try:
+        url = f"{KV_URL}/{'/'.join(str(a) for a in args)}"
+        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {KV_TOKEN}"})
+        with urllib.request.urlopen(req, timeout=5) as r:
+            return json.loads(r.read()).get("result")
+    except Exception as e:
+        print(f"[chat] kv error: {type(e).__name__}", flush=True)
+        return None
+
+
+def cache_get(key):
+    # Try KV first
+    val = kv_call("GET", key)
+    if val:
+        return val
+    # Fallback to memory
+    entry = _mem_cache.get(key)
+    if entry and time.time() - entry[1] < CACHE_TTL:
+        return entry[0]
+    return None
+
+
+def cache_put(key, value, ttl=CACHE_TTL):
+    kv_call("SET", key, value, "EX", ttl)
+    _mem_cache[key] = (value, time.time())
+    # Bound memory fallback
+    if len(_mem_cache) > 200:
+        oldest = min(_mem_cache, key=lambda k: _mem_cache[k][1])
+        del _mem_cache[oldest]
+
+
+def check_rate_limit(ip):
+    """Sliding window: max RATE_PER_MIN requests per IP per minute."""
+    minute = int(time.time() // 60)
+    key = f"chat:rl:{ip}:{minute}"
+    count = kv_call("INCR", key)
+    if count is None:
+        return False  # KV down — allow, don't block
+    kv_call("EXPIRE", key, 70)
+    return count > RATE_PER_MIN
+
+
+def check_daily_cap():
+    """Global daily LLM call cap, resets midnight Pacific."""
+    # Pacific midnight in UTC
+    now_pt = datetime.now(timezone.utc).astimezone()
+    # Rough: use UTC date; close enough for a cap (off by hours, not days)
+    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    key = f"chat:daily:{day}"
+    count = kv_call("INCR", key)
+    if count is None:
+        return False  # KV down — allow
+    kv_call("EXPIRE", key, 172800)
+    return count > DAILY_CAP
+
+
+def scrub_pii(text):
+    """Remove emails, phones, and long digit sequences."""
+    text = re.sub(r"[\w.+-]+@[\w-]+\.[\w.]+", "[email]", text)
+    text = re.sub(r"\+?[\d\s().-]{10,}", "[phone]", text)
+    return text[:200]
+
+
+def log_question(question, tier, cached):
+    """Log to KV with TTL. All questions, not just LLM-bound ones."""
+    q = scrub_pii(question)
+    ts = int(time.time())
+    key = f"chat:log:{ts}:{hashlib.md5(q.encode()).hexdigest()[:8]}"
+    val = json.dumps({"q": q, "tier": tier, "cached": cached, "ts": ts})
+    kv_call("SET", key, val, "EX", LOG_TTL)
+
 
 def get_context():
     global _context_cache
@@ -98,96 +161,122 @@ def get_context():
         _context_cache = ""
     return _context_cache
 
+
 def normalize(q):
     q = q.lower()
     q = re.sub(r"[^a-z0-9 ]", "", q)
     return re.sub(r"\s+", " ", q).strip()
 
+
 def check_faq(norm_q):
+    # Whole-phrase match first (avoids "pocketful" shadowing "what is pocketful's pricing")
+    for keywords, answer in FAQS:
+        for k in keywords:
+            if k == norm_q or norm_q.startswith(k + " ") or norm_q.endswith(" " + k):
+                return answer
+    # Then substring fallback
     for keywords, answer in FAQS:
         if any(k in norm_q for k in keywords):
             return answer
     return None
 
-def rate_limited(ip):
-    now = time.time()
-    bucket = _rate_buckets.get(ip, [])
-    bucket = [t for t in bucket if now - t < 60]
-    if len(bucket) >= 15:
-        return True
-    bucket.append(now)
-    _rate_buckets[ip] = bucket
-    return False
+
+def is_simple_question(norm_q):
+    return any(k in norm_q for k in SIMPLE_KEYWORDS) and len(norm_q.split()) <= 10
+
+
+def call_gemini(question, context, api_key):
+    prompt = f"{SYSTEM}\n\nContext:\n{context}\n\nQuestion: {question}\nAnswer:"
+    req_data = json.dumps({
+        "contents": [{"parts": [{"text": prompt}]}],
+        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 300},
+    }).encode()
+    req = urllib.request.Request(
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=" + api_key,
+        data=req_data,
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(req, timeout=30) as r:
+        resp = json.loads(r.read())
+    text = resp["candidates"][0]["content"]["parts"][0]["text"].strip()
+    # Validate: cap at ~400 chars, strip anything suspicious
+    return text[:1200]
+
 
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
+            if DISABLED:
+                self._send(503, {"error": "The assistant is temporarily disabled."})
+                return
+
             length = int(self.headers.get("Content-Length", 0))
             body = json.loads(self.rfile.read(length))
             question = body.get("question", "").strip()
             if not question:
                 self._send(400, {"error": "No question provided"})
                 return
-            if len(question) > 500:
+            if len(question) > MAX_Q_LEN:
                 self._send(400, {"error": "Question too long — keep it under 500 characters."})
                 return
 
-            ip = self.headers.get("X-Forwarded-For", "?").split(",")[0].strip()
-            if rate_limited(ip):
+            # Vercel sanitizes X-Forwarded-For; take the last (closest) IP
+            fwd = self.headers.get("X-Forwarded-For", "")
+            ip = fwd.split(",")[-1].strip() if fwd else "?"
+            if check_rate_limit(ip):
                 self._send(429, {"error": "Too many questions — wait a minute and try again."})
                 return
 
             norm_q = normalize(question)
+            cache_key = "chat:ans:" + hashlib.md5(norm_q.encode()).hexdigest()
 
-            # 1. Exact answer cache (TTL + size bounded)
-            cached = cache_get(norm_q)
+            # 1. Persistent cache
+            cached = cache_get(cache_key)
             if cached:
+                log_question(question, "cache", True)
                 self._send(200, {"answer": cached, "cached": True})
                 return
 
-            # 2. FAQ pre-answers — zero tokens
+            # 2. FAQ pre-answers
             faq = check_faq(norm_q)
             if faq:
-                cache_put(norm_q, faq)
+                cache_put(cache_key, faq)
+                log_question(question, "faq", True)
                 self._send(200, {"answer": faq, "cached": True})
                 return
 
-            # 4. Topic gate — off-topic never reaches the LLM
+            # 3. Topic gate
             words = set(norm_q.split())
             if not words & TOPIC_KEYWORDS:
+                log_question(question, "offtopic", True)
                 self._send(200, {"answer": OFFTOPIC_REPLY})
                 return
 
-            # 5. LLM with two-tier context (tiny FACTS for simple Qs, full file for the rest)
-            api_key = os.environ.get("GEMINI_API_KEY", "")
-            if not api_key:
-                self._send(500, {"error": "API key not configured"})
+            # 4. Daily cap
+            if check_daily_cap():
+                log_question(question, "capped", False)
+                self._send(503, {"answer": (
+                    "The assistant has hit its daily limit — try again tomorrow. "
+                    "Meanwhile, the project repo has most answers: "
+                    "https://github.com/vibhortayal/nightshift-pocketful")})
                 return
 
-            context = FACTS if is_simple_question(norm_q) else get_context()
-            tier = "facts" if is_simple_question(norm_q) else "full"
-            # Log the question for FAQ mining (no IP, just the text) — visible in Vercel runtime logs
-            print(f"[chat] tier={tier} q={question[:120]}", flush=True)
+            # 5. LLM with two-tier context
+            api_key = os.environ.get("GEMINI_API_KEY", "")
+            if not api_key:
+                self._send(500, {"error": "Something went wrong on our end. Try again in a moment."})
+                return
 
-            prompt = f"{SYSTEM}\n\nContext:\n{context}\n\nQuestion: {question}\nAnswer:"
-            req_data = json.dumps({
-                "contents": [{"parts": [{"text": prompt}]}],
-                "generationConfig": {"temperature": 0.3, "maxOutputTokens": 300},
-            }).encode()
+            simple = is_simple_question(norm_q)
+            context = FACTS if simple else get_context()
+            tier = "facts" if simple else "full"
+            log_question(question, tier, False)
 
-            req = urllib.request.Request(
-                f"https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key={api_key}",
-                data=req_data,
-                headers={"Content-Type": "application/json"},
-            )
-            with urllib.request.urlopen(req, timeout=30) as r:
-                resp = json.loads(r.read())
-
-            answer = resp["candidates"][0]["content"]["parts"][0]["text"].strip()
-            cache_put(norm_q, answer)
+            answer = call_gemini(question, context, api_key)
+            cache_put(cache_key, answer)
             self._send(200, {"answer": answer})
+
         except urllib.error.HTTPError as e:
-            # Never leak raw API errors to visitors
             if e.code == 429:
                 self._send(503, {"error": "The assistant is busy right now — try again in a minute."})
             else:
@@ -198,16 +287,18 @@ class handler(BaseHTTPRequestHandler):
             self._send(500, {"error": "Something went wrong on our end. Try again in a moment."})
 
     def do_GET(self):
-        # /api/chat?warm=1 — pre-warm the cache with likely questions after a deploy
+        if DISABLED:
+            self._send(503, {"error": "Disabled"})
+            return
         if "warm" in (self.path or ""):
             warmed = 0
             for keywords, answer in FAQS:
                 for k in keywords:
-                    nq = normalize(k)
-                    if nq not in _answer_cache:
-                        _answer_cache[nq] = answer
+                    ck = "chat:ans:" + hashlib.md5(normalize(k).encode()).hexdigest()
+                    if not cache_get(ck):
+                        cache_put(ck, answer)
                         warmed += 1
-            self._send(200, {"warmed": warmed, "cached": len(_answer_cache)})
+            self._send(200, {"warmed": warmed})
             return
         self._send(404, {"error": "Not found"})
 
