@@ -1,0 +1,67 @@
+<style>
+/* ---------- nightshift chat widget ---------- */
+#nsc-chat-btn{position:fixed;right:22px;bottom:22px;z-index:9999;width:58px;height:58px;border-radius:50%;
+  background:var(--sodium);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 20px rgba(255,184,28,.35);transition:transform .15s}
+#nsc-chat-btn:hover{transform:scale(1.06)}
+#nsc-chat-btn svg{width:26px;height:26px;fill:#020716}
+#nsc-chat-panel{position:fixed;right:22px;bottom:92px;z-index:9999;width:min(380px,calc(100vw - 44px));height:480px;
+  max-height:calc(100vh - 130px);background:#0a1128;border:1px solid var(--rule);border-radius:14px;
+  display:none;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.5)}
+#nsc-chat-panel.open{display:flex}
+#nsc-chat-head{padding:14px 16px;border-bottom:1px solid var(--rule);display:flex;align-items:center;justify-content:space-between}
+#nsc-chat-head b{font-family:var(--display);text-transform:uppercase;letter-spacing:.04em;font-size:1.05rem}
+#nsc-chat-head b span{color:var(--sodium)}
+#nsc-chat-close{background:none;border:none;color:var(--dust);font-size:1.3rem;cursor:pointer;line-height:1}
+#nsc-chat-msgs{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:10px}
+.nsc-msg{max-width:85%;padding:9px 13px;border-radius:12px;font-size:.92rem;line-height:1.4}
+.nsc-msg.user{align-self:flex-end;background:var(--sodium);color:#020716;border-bottom-right-radius:4px}
+.nsc-msg.bot{align-self:flex-start;background:#16213a;color:var(--chalk);border-bottom-left-radius:4px}
+.nsc-msg.bot.thinking{color:var(--dust);font-style:italic}
+#nsc-chat-form{display:flex;border-top:1px solid var(--rule);padding:10px;gap:8px}
+#nsc-chat-input{flex:1;background:#020716;border:1px solid var(--rule);border-radius:8px;color:var(--chalk);
+  padding:10px 12px;font-size:.92rem;font-family:var(--text);outline:none}
+#nsc-chat-input:focus{border-color:var(--sodium)}
+#nsc-chat-send{background:var(--sodium);border:none;border-radius:8px;color:#020716;font-weight:600;
+  padding:10px 16px;cursor:pointer;font-size:.92rem}
+#nsc-chat-send:disabled{opacity:.5;cursor:default}
+</style>
+<button id="nsc-chat-btn" aria-label="Chat about Nightshift">
+  <svg viewBox="0 0 24 24"><path d="M4 2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-4 4V4a2 2 0 0 1 2-2z"/></svg>
+</button>
+<div id="nsc-chat-panel" role="dialog" aria-label="Nightshift chat">
+  <div id="nsc-chat-head"><b>Ask <span>Nightshift</span></b><button id="nsc-chat-close" aria-label="Close">×</button></div>
+  <div id="nsc-chat-msgs"></div>
+  <form id="nsc-chat-form">
+    <input id="nsc-chat-input" type="text" placeholder="Ask about the factory…" autocomplete="off" maxlength="500">
+    <button id="nsc-chat-send" type="submit">Send</button>
+  </form>
+</div>
+<script>
+(function(){
+  // Set this to your deployed Vercel URL after `vercel --prod`
+  var CHAT_API = "https://nightshift-chat.vercel.app/api/chat";
+  var btn=document.getElementById('nsc-chat-btn'), panel=document.getElementById('nsc-chat-panel'),
+      close=document.getElementById('nsc-chat-close'), msgs=document.getElementById('nsc-chat-msgs'),
+      form=document.getElementById('nsc-chat-form'), input=document.getElementById('nsc-chat-input'),
+      send=document.getElementById('nsc-chat-send');
+  function addMsg(text, cls){
+    var d=document.createElement('div'); d.className='nsc-msg '+cls; d.textContent=text;
+    msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d;
+  }
+  addMsg("Hi! Ask me anything about the Nightshift factory, the hackathon, or how we built Pocketful.", "bot");
+  btn.onclick=function(){ panel.classList.toggle('open'); if(panel.classList.contains('open')) input.focus(); };
+  close.onclick=function(){ panel.classList.remove('open'); };
+  form.onsubmit=function(e){
+    e.preventDefault();
+    var q=input.value.trim(); if(!q) return;
+    addMsg(q, "user"); input.value=""; send.disabled=true;
+    var t=addMsg("Thinking…", "bot thinking");
+    fetch(CHAT_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})})
+      .then(function(r){ return r.json(); })
+      .then(function(d){ t.classList.remove('thinking'); t.textContent=d.answer||d.error||"Sorry, something went wrong."; })
+      .catch(function(){ t.classList.remove('thinking'); t.textContent="Couldn't reach the chat backend. Try again in a moment."; })
+      .finally(function(){ send.disabled=false; msgs.scrollTop=msgs.scrollHeight; });
+  };
+})();
+</script>
