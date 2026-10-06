@@ -192,11 +192,11 @@ def scrub_pii(text):
     text = re.sub(r"https?://\S+", "[url]", text)
     text = re.sub(r"\b(?:www\.)?[\w-]+\.(?:com|net|org|io|ai|dev|app)\b", "[domain]", text, flags=re.IGNORECASE)
     text = re.sub(r"\+?[\d\s().-]{10,}", "[phone]", text)
-    # Names: "my name is John Smith", "call me Jane", "this is Bob Jones", "I am Alice"
-    # Case-insensitive on the trigger, matches 1-3 capitalized OR lowercase words after
+    # Names: "my name is John Smith", "call me Jane" — max 2 CAPITALIZED words
+    # so "this is a great app" is not redacted
     text = re.sub(
-        r"\b(my name is|call me|this is|i am|i'm)\s+[A-Za-z]+(?:\s+[A-Za-z]+){0,2}",
-        r"\1 [name]", text, flags=re.IGNORECASE)
+        r"\b(my name is|call me)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+)?",
+        r"\1 [name]", text)
     return text[:200]
 
 
