@@ -244,6 +244,13 @@ def check_faq(norm_q):
         for k in keywords:
             if len(k.split()) >= 3 and k in norm_q:
                 return answer
+    # Fuzzy fallback: typo-tolerant word match
+    for keywords, answer in FAQS:
+        key_words = set()
+        for k in keywords:
+            key_words.update(k.split())
+        if any(fuzzy_match(w, key_words) for w in norm_q.split()):
+            return answer
     return None
 
 
