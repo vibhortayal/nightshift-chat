@@ -9,6 +9,11 @@ from http.server import BaseHTTPRequestHandler
 # Single compressed knowledge file (~800 tokens) instead of full docs (~16k)
 CONTEXT_URL = "https://raw.githubusercontent.com/vibhortayal/nightshift-chat/main/CONTEXT.md"
 
+# In-memory caches (per warm instance)
+_context_cache = None
+_answer_cache = {}       # normalized question -> answer
+_rate_buckets = {}       # ip -> [timestamps]
+
 # Two-tier context: tiny facts blurb (~100 tokens) for simple questions,
 # full compressed file (~800 tokens) only when needed
 FACTS = """Dark Factory by Team Nightshift: three-seat AI software factory on Band (band.ai).
