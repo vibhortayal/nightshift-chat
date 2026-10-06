@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html><head><meta charset="utf-8"><title>Nightshift chat widget</title>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
 <style>
 :root{--sodium:#ffb81c;--rule:#2a3350;--chalk:#f5f0e8;--dust:#8a8fa3;--display:Georgia,serif;--text:system-ui,sans-serif}
 body{background:#020716;margin:0}
@@ -52,6 +53,7 @@ body{background:#020716;margin:0}
     <button id="nsc-chat-send" type="submit">Send</button>
   </form>
 </div>
+<script src="https://cdn.jsdelivr.net/npm/fuse.js@7.0.0"></script>
 <script>
 (function(){
   // Set this to your deployed Vercel URL after `vercel --prod`
@@ -123,32 +125,20 @@ body{background:#020716;margin:0}
     [["cost","how much","tokens","expensive"],
      "The submitted run used ~141M tokens (~$59 at list price), covered by a Claude Max subscription — no per-run bill.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"]
   ];
-  function levenshtein(a,b){
-    if(Math.abs(a.length-b.length)>2) return 99;
-    var prev=[]; for(var j=0;j<=b.length;j++) prev.push(j);
-    for(var i=1;i<=a.length;i++){
-      var cur=[i];
-      for(var k=1;k<=b.length;k++){
-        cur.push(Math.min(prev[k]+1, cur[k-1]+1, prev[k-1]+(a[i-1]!==b[k-1]?1:0)));
-      }
-      prev=cur;
-    }
-    return prev[b.length];
-  }
-  function fuzzyWord(word, keys){
-    if(word.length<4) return false;
-    for(var i=0;i<keys.length;i++){
-      var ks=keys[i].split(" ");
-      for(var j=0;j<ks.length;j++){
-        if(Math.abs(word.length-ks[j].length)<=2&&levenshtein(word,ks[j])<=2) return true;
-      }
-    }
-    return false;
-  }
+  // Fuse.js fuzzy search over FAQ keys — typo-tolerant, handles reordering
+  var FUSE=null;
+  try{
+    var fuseIndex=[];
+    CLIENT_FAQ.forEach(function(entry, idx){
+      entry[0].forEach(function(k){ fuseIndex.push({key:k, idx:idx}); });
+    });
+    FUSE=new Fuse(fuseIndex, {keys:['key'], threshold:0.4, ignoreLocation:true});
+  }catch(e){ FUSE=null; }
+
   function clientFaq(q){
     var nq=q.toLowerCase().replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim();
     function endsWith(str, suffix){ return str.slice(-suffix.length)===suffix; }
-    // Whole-phrase match first
+    // Whole-phrase match first (fast path)
     for(var i=0;i<CLIENT_FAQ.length;i++){
       var keys=CLIENT_FAQ[i][0];
       for(var j=0;j<keys.length;j++){
@@ -156,20 +146,10 @@ body{background:#020716;margin:0}
         if(nq===k||nq.indexOf(k+" ")===0||endsWith(nq," "+k)) return CLIENT_FAQ[i][1];
       }
     }
-    // Substring fallback only for longer, specific phrases (3+ words)
-    for(var i2=0;i2<CLIENT_FAQ.length;i2++){
-      var keys2=CLIENT_FAQ[i2][0];
-      for(var j2=0;j2<keys2.length;j2++){
-        var k2=keys2[j2];
-        if(k2.split(" ").length>=3&&nq.indexOf(k2)!==-1) return CLIENT_FAQ[i2][1];
-      }
-    }
-    // Fuzzy fallback: typo-tolerant word match against FAQ keys
-    var words=nq.split(" ");
-    for(var i3=0;i3<CLIENT_FAQ.length;i3++){
-      for(var w=0;w<words.length;w++){
-        if(fuzzyWord(words[w], CLIENT_FAQ[i3][0])) return CLIENT_FAQ[i3][1];
-      }
+    // Fuse.js fuzzy fallback
+    if(FUSE){
+      var res=FUSE.search(nq);
+      if(res.length&&res[0].score<0.5) return CLIENT_FAQ[res[0].item.idx][1];
     }
     return null;
   }
