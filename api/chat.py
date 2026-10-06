@@ -29,6 +29,8 @@ def _load_context():
         return ""
 
 _BUNDLED_CONTEXT = _load_context()
+if not _BUNDLED_CONTEXT.strip():
+    raise RuntimeError("CONTEXT.md is empty or missing — refusing to start without grounding context")
 
 # Kill switch — set CHAT_DISABLED=1 in Vercel env to disable everything
 DISABLED = os.environ.get("CHAT_DISABLED", "") == "1"
@@ -99,12 +101,17 @@ _context_cache = None
 
 
 def kv_call(*args):
-    """Call Upstash Redis REST API. Returns parsed result or None on failure."""
+    """Call Upstash Redis REST API via POST with JSON body (handles spaces/slashes in values).
+    Returns parsed result or None on failure."""
     if not KV_URL or not KV_TOKEN:
         return None
     try:
-        url = f"{KV_URL}/{'/'.join(str(a) for a in args)}"
-        req = urllib.request.Request(url, headers={"Authorization": f"Bearer {KV_TOKEN}"})
+        body = json.dumps(list(args)).encode()
+        req = urllib.request.Request(
+            KV_URL,
+            data=body,
+            headers={"Authorization": f"Bearer {KV_TOKEN}", "Content-Type": "application/json"},
+        )
         with urllib.request.urlopen(req, timeout=5) as r:
             return json.loads(r.read()).get("result")
     except Exception as e:
@@ -131,6 +138,11 @@ def cache_put(key, value, ttl=CACHE_TTL):
     if len(_mem_cache) > 200:
         oldest = min(_mem_cache, key=lambda k: _mem_cache[k][1])
         del _mem_cache[oldest]
+
+
+def kv_healthy():
+    """True if KV is reachable. LLM calls fail closed when it's not."""
+    return kv_call("PING") == "PONG"
 
 
 def check_rate_limit(ip):
@@ -172,9 +184,12 @@ def check_ip_daily_cap(ip):
 
 
 def scrub_pii(text):
-    """Remove emails, phones, and long digit sequences."""
+    """Remove emails, phones, URLs, and long digit sequences."""
     text = re.sub(r"[\w.+-]+@[\w-]+\.[\w.]+", "[email]", text)
+    text = re.sub(r"https?://\S+", "[url]", text)
     text = re.sub(r"\+?[\d\s().-]{10,}", "[phone]", text)
+    # Common name pattern: "my name is X" / "i am X" — redact the next word
+    text = re.sub(r"\b(my name is|i am|i'm)\s+\w+", r"\1 [name]", text, flags=re.IGNORECASE)
     return text[:200]
 
 
@@ -312,14 +327,8 @@ class handler(BaseHTTPRequestHandler):
                 self._send(200, {"answer": OFFTOPIC_REPLY})
                 return
 
-            # 4. Daily caps (global + per-IP)
-            if check_daily_cap():
-                log_question(question, "capped", False)
-                self._send(503, {"answer": (
-                    "The assistant has hit its daily limit — try again tomorrow. "
-                    "Meanwhile, the project repo has most answers: "
-                    "https://github.com/vibhortayal/nightshift-pocketful")})
-                return
+            # 4. Daily caps — per-IP first, global only if per-IP passes
+            # (so one IP can't burn the 500/day global cap)
             if check_ip_daily_cap(ip):
                 log_question(question, "ip_capped", False)
                 self._send(503, {"answer": (
@@ -327,8 +336,20 @@ class handler(BaseHTTPRequestHandler):
                     "The project repo has most answers: "
                     "https://github.com/vibhortayal/nightshift-pocketful")})
                 return
+            if check_daily_cap():
+                log_question(question, "capped", False)
+                self._send(503, {"answer": (
+                    "The assistant has hit its daily limit — try again tomorrow. "
+                    "Meanwhile, the project repo has most answers: "
+                    "https://github.com/vibhortayal/nightshift-pocketful")})
+                return
 
-            # 5. LLM with two-tier context
+            # 5. LLM with two-tier context — fail closed if KV is down
+            # (FAQ/off-topic/cached answers above stay available)
+            if not kv_healthy():
+                self._send(503, {"error": "The assistant is temporarily unavailable — try again in a moment."})
+                return
+
             api_key = os.environ.get("GEMINI_API_KEY", "")
             if not api_key:
                 self._send(500, {"error": "Something went wrong on our end. Try again in a moment."})
