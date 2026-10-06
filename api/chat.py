@@ -11,9 +11,8 @@ from http.server import BaseHTTPRequestHandler
 
 try:
     from rapidfuzz import fuzz, process
-    HAS_RAPIDFUZZ = True
 except ImportError:
-    HAS_RAPIDFUZZ = False
+    raise RuntimeError("rapidfuzz is required — install from requirements.txt")
 
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
@@ -301,52 +300,58 @@ def word_score(q_word, key_words):
     return best
 
 
-def faq_score(norm_q, keywords):
-    """Score a question against FAQ keywords (0-100). Uses RapidFuzz if available."""
-    key_text = " ".join(sorted(set(" ".join(keywords).split())))
-    if HAS_RAPIDFUZZ:
-        # token_set_ratio handles reordering + typos in one shot
-        return fuzz.token_set_ratio(norm_q, key_text)
-    # Fallback: hand-rolled multi-signal
-    q_words = [w for w in norm_q.split() if len(w) > 2]
-    key_words = set(key_text.split())
-    if not q_words or not key_words:
-        return 0
-    total = sum(word_score(w, key_words) for w in q_words)
-    return total / len(q_words) * 100
+NEGATION_WORDS = {"not", "no", "never", "don't", "doesn't", "isn't", "aren't", "n't"}
 
 
-def fuzzy_match(word, keywords, min_score=80):
-    """Typo-tolerant word match. Uses RapidFuzz if available."""
-    if len(word) < 4:
+def has_negation(norm_q):
+    return bool(set(norm_q.split()) & NEGATION_WORDS) or "n't" in norm_q
+
+
+def faq_fuzzy_match(norm_q):
+    """Score each FAQ alias separately with full-string ratio.
+    Requires >=85 AND a 10+ point gap to the runner-up.
+    Skips short queries (<3 words) and negation — those go to the LLM."""
+    words = norm_q.split()
+    if len(words) < 3 or has_negation(norm_q):
+        return None
+    scored = []  # (score, answer, alias)
+    for keywords, answer in FAQS:
+        for alias in keywords:
+            s = fuzz.ratio(norm_q, alias)
+            scored.append((s, answer, alias))
+    scored.sort(reverse=True)
+    if not scored or scored[0][0] < 85:
+        return None
+    # Require a clear winner — no autoanswer on ambiguous matches
+    if len(scored) > 1 and scored[0][0] - scored[1][0] < 10:
+        return None
+    return scored[0][1]
+
+
+def fuzzy_gate_match(word, keywords, min_score=85):
+    """Typo-tolerant topic gate: >=85, words of length 5+ only."""
+    if len(word) < 5:
         return False
-    if HAS_RAPIDFUZZ:
-        best = process.extractOne(word, list(keywords), scorer=fuzz.ratio)
-        return best and best[1] >= min_score
-    return any(levenshtein(word, k) <= 2 for k in keywords if abs(len(word) - len(k)) <= 2)
+    best = process.extractOne(word, list(keywords), scorer=fuzz.ratio)
+    return bool(best and best[1] >= min_score)
 
 
 def check_faq(norm_q):
-    # Whole-phrase match first (avoids "pocketful" shadowing "what is pocketful's pricing")
+    # Exact or ends-with match only. No prefix matching — "who built the pyramids"
+    # must go to the LLM, not the team FAQ.
     for keywords, answer in FAQS:
         for k in keywords:
-            if k == norm_q or norm_q.startswith(k + " ") or norm_q.endswith(" " + k):
+            if k == norm_q or norm_q.endswith(" " + k):
                 return answer
     # Substring fallback only for longer, specific phrases (3+ words).
-    # Short ones like "who made" must match as a whole phrase above.
     for keywords, answer in FAQS:
         for k in keywords:
             if len(k.split()) >= 3 and k in norm_q:
                 return answer
-    # Fuzzy fallback: scored multi-signal match (typos, transpositions, reordering)
-    # Picks the best-scoring FAQ instead of first-match. Threshold 55/100.
-    best_faq, best_score = None, 55
-    for keywords, answer in FAQS:
-        s = faq_score(norm_q, keywords)
-        if s > best_score:
-            best_faq, best_score = answer, s
-    if best_faq:
-        return best_faq
+    # Fuzzy fallback: per-alias full-string ratio, >=85 with gap to runner-up
+    fuzzy_answer = faq_fuzzy_match(norm_q)
+    if fuzzy_answer:
+        return fuzzy_answer
     return None
 
 
@@ -446,10 +451,11 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             # 3. Topic gate — exact, substring, compound, and fuzzy (typo-tolerant)
+            # Fuzzy: >=85 on words of length 5+ only (so "banned" doesn't match "band")
             words = set(norm_q.split())
             joined = norm_q.replace(" ", "")
             exact = bool(words & TOPIC_KEYWORDS or any(k in joined for k in TOPIC_KEYWORDS))
-            fuzzy = any(fuzzy_match(w, TOPIC_KEYWORDS) for w in words)
+            fuzzy = any(fuzzy_gate_match(w, TOPIC_KEYWORDS) for w in words)
             if not (exact or fuzzy):
                 log_question(question, "offtopic", True)
                 self._send(200, {"answer": OFFTOPIC_REPLY})
