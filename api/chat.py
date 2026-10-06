@@ -72,12 +72,14 @@ SIMPLE_KEYWORDS = {
 TOPIC_KEYWORDS = {
     "nightshift", "factory", "factories", "hackathon", "band", "pocketful",
     "architect", "implementer", "verifier", "seat", "seats", "agent", "agents",
-    "claude", "spark", "instinct", "vibhor", "dark", "wearedevelopers", "lablab",
+    "claude", "spark", "instinct", "dark", "wearedevelopers", "lablab",
     "mandate", "mandates", "harness", "stage", "stages", "build", "built",
     "code", "coding", "team", "run", "runs", "test", "tests", "spec", "room",
     "tablekeeper", "toy", "docker", "review", "reviewer", "dispatch", "opus",
     "sonnet", "commandment", "block",
 }
+# Note: "vibhor" intentionally excluded — personal questions about Vibhor
+# (e.g. "what is vibhor's weakness") are out of scope and get the generic reply.
 
 OFFTOPIC_REPLY = ("I only answer questions about Team Nightshift, the Dark Factory, and the hackathon. "
                   "Try asking about how the factory works, the seats, or the build.")
