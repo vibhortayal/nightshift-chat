@@ -4,15 +4,20 @@ import os
 import re
 import time
 import urllib.request
+import urllib.error
 from http.server import BaseHTTPRequestHandler
 
 # Single compressed knowledge file (~800 tokens) instead of full docs (~16k)
 CONTEXT_URL = "https://raw.githubusercontent.com/vibhortayal/nightshift-chat/main/CONTEXT.md"
 
-# In-memory caches (per warm instance)
+# In-memory caches (per warm instance) — bounded, with TTL
+# Allowed origin — only the project page may call this API
+ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 _context_cache = None
-_answer_cache = {}       # normalized question -> answer
+_answer_cache = {}       # normalized question -> (answer, timestamp)
 _rate_buckets = {}       # ip -> [timestamps]
+CACHE_TTL = 3600         # 1 hour
+CACHE_MAX = 200          # max entries
 
 # Two-tier context: tiny facts blurb (~100 tokens) for simple questions,
 # full compressed file (~800 tokens) only when needed
@@ -28,32 +33,23 @@ SIMPLE_KEYWORDS = {
     "built", "made", "created", "team", "pocketful",
 }
 
-# Stopwords for similarity matching
-STOPWORDS = {
-    "the", "a", "an", "is", "it", "of", "to", "in", "on", "for", "and",
-    "or", "what", "how", "why", "when", "where", "who", "which", "do",
-    "does", "did", "can", "could", "would", "should", "are", "was", "were",
-    "be", "been", "have", "has", "had", "with", "about", "tell", "me",
-    "please", "you", "your", "this", "that", "there", "their", "its",
-}
-
-def significant_words(norm_q):
-    return set(w for w in norm_q.split() if w not in STOPWORDS and len(w) > 2)
-
-def find_similar(norm_q, threshold=0.6):
-    """Free paraphrase matching: word-overlap similarity against cached questions."""
-    q_words = significant_words(norm_q)
-    if not q_words:
+def cache_get(norm_q):
+    """Exact normalized match only — no fuzzy matching (avoids negation bugs)."""
+    entry = _answer_cache.get(norm_q)
+    if not entry:
         return None
-    best, best_score = None, 0
-    for cached_q, answer in _answer_cache.items():
-        c_words = significant_words(cached_q)
-        if not c_words:
-            continue
-        overlap = len(q_words & c_words) / max(len(q_words), len(c_words))
-        if overlap > best_score and overlap >= threshold:
-            best, best_score = answer, overlap
-    return best
+    answer, ts = entry
+    if time.time() - ts > CACHE_TTL:
+        del _answer_cache[norm_q]
+        return None
+    return answer
+
+def cache_put(norm_q, answer):
+    if len(_answer_cache) >= CACHE_MAX:
+        # evict oldest
+        oldest = min(_answer_cache, key=lambda k: _answer_cache[k][1])
+        del _answer_cache[oldest]
+    _answer_cache[norm_q] = (answer, time.time())
 
 def is_simple_question(norm_q):
     return any(k in norm_q for k in SIMPLE_KEYWORDS) and len(norm_q.split()) <= 10
@@ -132,6 +128,9 @@ class handler(BaseHTTPRequestHandler):
             if not question:
                 self._send(400, {"error": "No question provided"})
                 return
+            if len(question) > 500:
+                self._send(400, {"error": "Question too long — keep it under 500 characters."})
+                return
 
             ip = self.headers.get("X-Forwarded-For", "?").split(",")[0].strip()
             if rate_limited(ip):
@@ -140,22 +139,16 @@ class handler(BaseHTTPRequestHandler):
 
             norm_q = normalize(question)
 
-            # 1. Exact answer cache (warm instances)
-            if norm_q in _answer_cache:
-                self._send(200, {"answer": _answer_cache[norm_q], "cached": True})
+            # 1. Exact answer cache (TTL + size bounded)
+            cached = cache_get(norm_q)
+            if cached:
+                self._send(200, {"answer": cached, "cached": True})
                 return
 
-            # 2. Semantic cache — free paraphrase matching, no embedding API needed
-            similar = find_similar(norm_q)
-            if similar:
-                _answer_cache[norm_q] = similar
-                self._send(200, {"answer": similar, "cached": True})
-                return
-
-            # 3. FAQ pre-answers — zero tokens
+            # 2. FAQ pre-answers — zero tokens
             faq = check_faq(norm_q)
             if faq:
-                _answer_cache[norm_q] = faq
+                cache_put(norm_q, faq)
                 self._send(200, {"answer": faq, "cached": True})
                 return
 
@@ -191,10 +184,18 @@ class handler(BaseHTTPRequestHandler):
                 resp = json.loads(r.read())
 
             answer = resp["candidates"][0]["content"]["parts"][0]["text"].strip()
-            _answer_cache[norm_q] = answer
+            cache_put(norm_q, answer)
             self._send(200, {"answer": answer})
+        except urllib.error.HTTPError as e:
+            # Never leak raw API errors to visitors
+            if e.code == 429:
+                self._send(503, {"error": "The assistant is busy right now — try again in a minute."})
+            else:
+                print(f"[chat] gemini HTTP {e.code}", flush=True)
+                self._send(500, {"error": "Something went wrong on our end. Try again in a moment."})
         except Exception as e:
-            self._send(500, {"error": str(e)[:200]})
+            print(f"[chat] error: {type(e).__name__}", flush=True)
+            self._send(500, {"error": "Something went wrong on our end. Try again in a moment."})
 
     def do_GET(self):
         # /api/chat?warm=1 — pre-warm the cache with likely questions after a deploy
@@ -212,7 +213,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", ALLOWED_ORIGIN)
         self.send_header("Access-Control-Allow-Methods", "POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
         self.end_headers()
@@ -220,6 +221,6 @@ class handler(BaseHTTPRequestHandler):
     def _send(self, code, data):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Origin", ALLOWED_ORIGIN)
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
