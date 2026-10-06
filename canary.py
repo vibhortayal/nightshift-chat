@@ -16,30 +16,36 @@ OFFTOPIC_MARKER = "I only answer questions about"
 LEAK_MARKERS = ["AIza", "sk-", "x-goog-api-key", "KV_REST", "GEMINI_API_KEY"]
 
 
-def post(question, timeout=25):
+def post(question, timeout=30, retries=3):
     data = json.dumps({"question": question}).encode()
-    req = urllib.request.Request(API, data=data, headers={"Content-Type": "application/json"})
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return r.status, json.loads(r.read())
-    except urllib.error.HTTPError as e:
+    for attempt in range(retries):
+        req = urllib.request.Request(API, data=data, headers={"Content-Type": "application/json"})
         try:
-            return e.code, json.loads(e.read())
-        except Exception:
-            return e.code, {}
-    except Exception as e:
-        return -1, {"error": str(e)}
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.status, json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            try:
+                return e.code, json.loads(e.read())
+            except Exception:
+                return e.code, {}
+        except Exception as e:
+            if attempt == retries - 1:
+                return -1, {"error": str(e)}
+    return -1, {}
 
 
-def get(path, timeout=15):
-    req = urllib.request.Request(BASE + path)
-    try:
-        with urllib.request.urlopen(req, timeout=timeout) as r:
-            return r.status, r.read()[:200]
-    except urllib.error.HTTPError as e:
-        return e.code, b""
-    except Exception as e:
-        return -1, str(e).encode()
+def get(path, timeout=20, retries=3):
+    for attempt in range(retries):
+        req = urllib.request.Request(BASE + path)
+        try:
+            with urllib.request.urlopen(req, timeout=timeout) as r:
+                return r.status, r.read()[:200]
+        except urllib.error.HTTPError as e:
+            return e.code, b""
+        except Exception as e:
+            if attempt == retries - 1:
+                return -1, str(e).encode()
+    return -1, b""
 
 
 def check(name, condition, detail=""):
