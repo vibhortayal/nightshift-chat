@@ -35,6 +35,19 @@ Answer questions about the Nightshift factory, the hackathon, how the team built
 Use ONLY the context provided below. If the answer isn't in the context, say so briefly.
 Keep answers concise (2-4 sentences usually). Be friendly and direct."""
 
+# Topic gate: only questions about the project reach the LLM. Saves API quota.
+TOPIC_KEYWORDS = {
+    "nightshift", "factory", "factories", "hackathon", "band", "pocketful",
+    "architect", "implementer", "verifier", "seat", "seats", "agent", "agents",
+    "claude", "spark", "instinct", "vibhor", "dark", "wearedevelopers", "lablab",
+    "mandate", "mandates", "harness", "stage", "stages", "build", "built",
+    "code", "coding", "team", "run", "runs", "test", "tests", "spec", "room",
+    "tablekeeper", "toy", "docker", "review", "reviewer", "dispatch",
+}
+
+OFFTOPIC_REPLY = ("I only answer questions about Team Nightshift, the Dark Factory, "
+                  "and the hackathon. Try asking about how the factory works, the seats, or the build.")
+
 class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         try:
@@ -43,6 +56,12 @@ class handler(BaseHTTPRequestHandler):
             question = body.get('question', '').strip()
             if not question:
                 self._send(400, {"error": "No question provided"})
+                return
+
+            # Topic gate: skip the LLM call for off-topic questions
+            words = set(question.lower().replace("?", "").replace(",", "").replace(".", "").split())
+            if not words & TOPIC_KEYWORDS:
+                self._send(200, {"answer": OFFTOPIC_REPLY})
                 return
 
             docs = get_docs()
