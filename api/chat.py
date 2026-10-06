@@ -78,7 +78,8 @@ OFFTOPIC_REPLY = ("I only answer questions about Team Nightshift, the Dark Facto
                   "Try asking about how the factory works, the seats, or the build.")
 
 FAQS = [
-    ({"what is the nightshift factory", "what is nightshift", "what is dark factory"},
+    ({"what is the nightshift factory", "what is nightshift", "what is dark factory",
+      "what is darkfactory", "whats darkfactory", "what is a darkfactory"},
      "Dark Factory is a three-seat AI software factory on the Band platform: Architect (plans), Implementer (builds), Verifier (checks). One human message starts a run; the seats handle everything after.\nMore: https://github.com/vibhortayal/nightshift-pocketful"),
     ({"who built", "who made", "who created"},
      "Team Nightshift: Vibhor Tayal (human) plus AI agents Spark, Instinct, and Claude — built for the WeAreDevelopers x BAND hackathon.\nMore: https://vibhortayal.github.io/nightshift/"),
@@ -321,9 +322,11 @@ class handler(BaseHTTPRequestHandler):
                 self._send(200, {"answer": faq, "cached": True})
                 return
 
-            # 3. Topic gate
+            # 3. Topic gate — match whole words AND substrings
+            # (catches "darkfactory", "nightshiftfactory", etc. as one word)
             words = set(norm_q.split())
-            if not words & TOPIC_KEYWORDS:
+            joined = norm_q.replace(" ", "")
+            if not (words & TOPIC_KEYWORDS or any(k in joined for k in TOPIC_KEYWORDS)):
                 log_question(question, "offtopic", True)
                 self._send(200, {"answer": OFFTOPIC_REPLY})
                 return
