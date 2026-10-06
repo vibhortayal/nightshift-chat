@@ -114,6 +114,28 @@ body{background:#020716;margin:0}
     [["cost","how much","tokens","expensive"],
      "The submitted run used ~141M tokens (~$59 at list price), covered by a Claude Max subscription — no per-run bill.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"]
   ];
+  function levenshtein(a,b){
+    if(Math.abs(a.length-b.length)>2) return 99;
+    var prev=[]; for(var j=0;j<=b.length;j++) prev.push(j);
+    for(var i=1;i<=a.length;i++){
+      var cur=[i];
+      for(var k=1;k<=b.length;k++){
+        cur.push(Math.min(prev[k]+1, cur[k-1]+1, prev[k-1]+(a[i-1]!==b[k-1]?1:0)));
+      }
+      prev=cur;
+    }
+    return prev[b.length];
+  }
+  function fuzzyWord(word, keys){
+    if(word.length<4) return false;
+    for(var i=0;i<keys.length;i++){
+      var ks=keys[i].split(" ");
+      for(var j=0;j<ks.length;j++){
+        if(Math.abs(word.length-ks[j].length)<=2&&levenshtein(word,ks[j])<=2) return true;
+      }
+    }
+    return false;
+  }
   function clientFaq(q){
     var nq=q.toLowerCase().replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim();
     function endsWith(str, suffix){ return str.slice(-suffix.length)===suffix; }
@@ -131,6 +153,13 @@ body{background:#020716;margin:0}
       for(var j2=0;j2<keys2.length;j2++){
         var k2=keys2[j2];
         if(k2.split(" ").length>=3&&nq.indexOf(k2)!==-1) return CLIENT_FAQ[i2][1];
+      }
+    }
+    // Fuzzy fallback: typo-tolerant word match against FAQ keys
+    var words=nq.split(" ");
+    for(var i3=0;i3<CLIENT_FAQ.length;i3++){
+      for(var w=0;w<words.length;w++){
+        if(fuzzyWord(words[w], CLIENT_FAQ[i3][0])) return CLIENT_FAQ[i3][1];
       }
     }
     return null;
