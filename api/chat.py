@@ -9,10 +9,49 @@ from http.server import BaseHTTPRequestHandler
 # Single compressed knowledge file (~800 tokens) instead of full docs (~16k)
 CONTEXT_URL = "https://raw.githubusercontent.com/vibhortayal/nightshift-chat/main/CONTEXT.md"
 
-# Simple in-memory caches (per warm instance)
-_context_cache = None
-_answer_cache = {}       # normalized question -> answer
-_rate_buckets = {}       # ip -> [timestamps]
+# Two-tier context: tiny facts blurb (~100 tokens) for simple questions,
+# full compressed file (~800 tokens) only when needed
+FACTS = """Dark Factory by Team Nightshift: three-seat AI software factory on Band (band.ai).
+Seats: Architect (claude-opus-5-5, plans/accepts), Implementer (claude-sonnet-5-5, builds), Verifier (claude-opus-5-5, checks).
+One human message starts a run; no seat asks the human anything.
+Submitted run (Run 7, Oct 2 2026): built Pocketful (kids' savings app), 4/4 stages, 2h27m, 4 BLOCKs, ~$59 (Claude Max).
+Team: Vibhor Tayal + AI agents Spark, Instinct, Claude. Hackathon: WeAreDevelopers x BAND.
+Repo: github.com/vibhortayal/nightshift-pocketful — Page: vibhortayal.github.io/nightshift/"""
+
+SIMPLE_KEYWORDS = {
+    "who", "what is", "whats", "when", "where", "how much", "cost",
+    "built", "made", "created", "team", "pocketful",
+}
+
+# Stopwords for similarity matching
+STOPWORDS = {
+    "the", "a", "an", "is", "it", "of", "to", "in", "on", "for", "and",
+    "or", "what", "how", "why", "when", "where", "who", "which", "do",
+    "does", "did", "can", "could", "would", "should", "are", "was", "were",
+    "be", "been", "have", "has", "had", "with", "about", "tell", "me",
+    "please", "you", "your", "this", "that", "there", "their", "its",
+}
+
+def significant_words(norm_q):
+    return set(w for w in norm_q.split() if w not in STOPWORDS and len(w) > 2)
+
+def find_similar(norm_q, threshold=0.6):
+    """Free paraphrase matching: word-overlap similarity against cached questions."""
+    q_words = significant_words(norm_q)
+    if not q_words:
+        return None
+    best, best_score = None, 0
+    for cached_q, answer in _answer_cache.items():
+        c_words = significant_words(cached_q)
+        if not c_words:
+            continue
+        overlap = len(q_words & c_words) / max(len(q_words), len(c_words))
+        if overlap > best_score and overlap >= threshold:
+            best, best_score = answer, overlap
+    return best
+
+def is_simple_question(norm_q):
+    return any(k in norm_q for k in SIMPLE_KEYWORDS) and len(norm_q.split()) <= 10
 
 SYSTEM = """You are Spark, answering questions on Team Nightshift's hackathon project page.
 Use ONLY the context below. Keep every answer to 2-3 short lines.
@@ -96,31 +135,43 @@ class handler(BaseHTTPRequestHandler):
 
             norm_q = normalize(question)
 
-            # 1. Answer cache (warm instances)
+            # 1. Exact answer cache (warm instances)
             if norm_q in _answer_cache:
                 self._send(200, {"answer": _answer_cache[norm_q], "cached": True})
                 return
 
-            # 2. FAQ pre-answers — zero tokens
+            # 2. Semantic cache — free paraphrase matching, no embedding API needed
+            similar = find_similar(norm_q)
+            if similar:
+                _answer_cache[norm_q] = similar
+                self._send(200, {"answer": similar, "cached": True})
+                return
+
+            # 3. FAQ pre-answers — zero tokens
             faq = check_faq(norm_q)
             if faq:
                 _answer_cache[norm_q] = faq
                 self._send(200, {"answer": faq, "cached": True})
                 return
 
-            # 3. Topic gate — off-topic never reaches the LLM
+            # 4. Topic gate — off-topic never reaches the LLM
             words = set(norm_q.split())
             if not words & TOPIC_KEYWORDS:
                 self._send(200, {"answer": OFFTOPIC_REPLY})
                 return
 
-            # 4. LLM with compressed context
+            # 5. LLM with two-tier context (tiny FACTS for simple Qs, full file for the rest)
             api_key = os.environ.get("GEMINI_API_KEY", "")
             if not api_key:
                 self._send(500, {"error": "API key not configured"})
                 return
 
-            prompt = f"{SYSTEM}\n\nContext:\n{get_context()}\n\nQuestion: {question}\nAnswer:"
+            context = FACTS if is_simple_question(norm_q) else get_context()
+            tier = "facts" if is_simple_question(norm_q) else "full"
+            # Log the question for FAQ mining (no IP, just the text) — visible in Vercel runtime logs
+            print(f"[chat] tier={tier} q={question[:120]}", flush=True)
+
+            prompt = f"{SYSTEM}\n\nContext:\n{context}\n\nQuestion: {question}\nAnswer:"
             req_data = json.dumps({
                 "contents": [{"parts": [{"text": prompt}]}],
                 "generationConfig": {"temperature": 0.3, "maxOutputTokens": 300},
@@ -139,6 +190,20 @@ class handler(BaseHTTPRequestHandler):
             self._send(200, {"answer": answer})
         except Exception as e:
             self._send(500, {"error": str(e)[:200]})
+
+    def do_GET(self):
+        # /api/chat?warm=1 — pre-warm the cache with likely questions after a deploy
+        if "warm" in (self.path or ""):
+            warmed = 0
+            for keywords, answer in FAQS:
+                for k in keywords:
+                    nq = normalize(k)
+                    if nq not in _answer_cache:
+                        _answer_cache[nq] = answer
+                        warmed += 1
+            self._send(200, {"warmed": warmed, "cached": len(_answer_cache)})
+            return
+        self._send(404, {"error": "Not found"})
 
     def do_OPTIONS(self):
         self.send_response(200)
