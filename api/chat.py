@@ -16,6 +16,9 @@ except ImportError:
 
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
+# Bump on every deploy so we can tell which version is live
+CHAT_VERSION = "2026-10-06-5"
+
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
 def _load_context():
@@ -527,5 +530,6 @@ class handler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json")
         self.send_header("Access-Control-Allow-Origin", ALLOWED_ORIGIN)
         self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Chat-Version", CHAT_VERSION)
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
