@@ -12,6 +12,24 @@ from http.server import BaseHTTPRequestHandler
 CONTEXT_URL = "https://raw.githubusercontent.com/vibhortayal/nightshift-chat/main/CONTEXT.md"
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
+# CONTEXT.md is bundled at deploy (read from disk) — a push can't silently change
+# what the bot says without a redeploy. Fallback to URL only if the file is missing.
+def _load_context():
+    here = os.path.dirname(os.path.abspath(__file__))
+    for p in (os.path.join(here, "..", "CONTEXT.md"), os.path.join(here, "CONTEXT.md")):
+        try:
+            with open(os.path.normpath(p)) as f:
+                return f.read()
+        except OSError:
+            pass
+    try:
+        with urllib.request.urlopen(CONTEXT_URL, timeout=10) as r:
+            return r.read().decode("utf-8", errors="ignore")
+    except Exception:
+        return ""
+
+_BUNDLED_CONTEXT = _load_context()
+
 # Kill switch — set CHAT_DISABLED=1 in Vercel env to disable everything
 DISABLED = os.environ.get("CHAT_DISABLED", "") == "1"
 
@@ -20,7 +38,8 @@ KV_URL = os.environ.get("KV_REST_API_URL", "")
 KV_TOKEN = os.environ.get("KV_REST_API_TOKEN", "")
 
 # Limits
-DAILY_CAP = 500          # max LLM calls per day (resets midnight Pacific)
+DAILY_CAP = 500          # max LLM calls per day globally (resets midnight Pacific)
+IP_DAILY_CAP = 40        # max LLM calls per IP per day
 RATE_PER_MIN = 15        # max requests per IP per minute
 CACHE_TTL = 3600         # 1 hour
 LOG_TTL = 30 * 86400     # 30 days retention
@@ -125,18 +144,31 @@ def check_rate_limit(ip):
     return count > RATE_PER_MIN
 
 
+def pacific_day():
+    """Current date in America/Los_Angeles — the daily cap resets at Pacific midnight."""
+    from zoneinfo import ZoneInfo
+    return datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%Y-%m-%d")
+
+
 def check_daily_cap():
     """Global daily LLM call cap, resets midnight Pacific."""
-    # Pacific midnight in UTC
-    now_pt = datetime.now(timezone.utc).astimezone()
-    # Rough: use UTC date; close enough for a cap (off by hours, not days)
-    day = datetime.now(timezone.utc).strftime("%Y-%m-%d")
-    key = f"chat:daily:{day}"
+    key = f"chat:daily:{pacific_day()}"
     count = kv_call("INCR", key)
     if count is None:
         return False  # KV down — allow
     kv_call("EXPIRE", key, 172800)
     return count > DAILY_CAP
+
+
+def check_ip_daily_cap(ip):
+    """Per-IP daily LLM call cap — one visitor can't burn the global cap."""
+    iphash = hashlib.md5(ip.encode()).hexdigest()[:12]
+    key = f"chat:ipdaily:{iphash}:{pacific_day()}"
+    count = kv_call("INCR", key)
+    if count is None:
+        return False
+    kv_call("EXPIRE", key, 172800)
+    return count > IP_DAILY_CAP
 
 
 def scrub_pii(text):
@@ -156,15 +188,7 @@ def log_question(question, tier, cached):
 
 
 def get_context():
-    global _context_cache
-    if _context_cache:
-        return _context_cache
-    try:
-        with urllib.request.urlopen(CONTEXT_URL, timeout=10) as r:
-            _context_cache = r.read().decode("utf-8", errors="ignore")
-    except Exception:
-        _context_cache = ""
-    return _context_cache
+    return _BUNDLED_CONTEXT
 
 
 def normalize(q):
@@ -204,9 +228,9 @@ def call_gemini(question, context, api_key):
         "generationConfig": {"temperature": 0.3, "maxOutputTokens": 300},
     }).encode()
     req = urllib.request.Request(
-        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent?key=" + api_key,
+        "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.5-flash-lite:generateContent",
         data=req_data,
-        headers={"Content-Type": "application/json"},
+        headers={"Content-Type": "application/json", "x-goog-api-key": api_key},
     )
     with urllib.request.urlopen(req, timeout=30) as r:
         resp = json.loads(r.read())
@@ -288,12 +312,19 @@ class handler(BaseHTTPRequestHandler):
                 self._send(200, {"answer": OFFTOPIC_REPLY})
                 return
 
-            # 4. Daily cap
+            # 4. Daily caps (global + per-IP)
             if check_daily_cap():
                 log_question(question, "capped", False)
                 self._send(503, {"answer": (
                     "The assistant has hit its daily limit — try again tomorrow. "
                     "Meanwhile, the project repo has most answers: "
+                    "https://github.com/vibhortayal/nightshift-pocketful")})
+                return
+            if check_ip_daily_cap(ip):
+                log_question(question, "ip_capped", False)
+                self._send(503, {"answer": (
+                    "You've hit the daily question limit — try again tomorrow. "
+                    "The project repo has most answers: "
                     "https://github.com/vibhortayal/nightshift-pocketful")})
                 return
 
@@ -323,19 +354,7 @@ class handler(BaseHTTPRequestHandler):
             self._send(500, {"error": "Something went wrong on our end. Try again in a moment."})
 
     def do_GET(self):
-        if DISABLED:
-            self._send(503, {"error": "Disabled"})
-            return
-        if "warm" in (self.path or ""):
-            warmed = 0
-            for keywords, answer in FAQS:
-                for k in keywords:
-                    ck = "chat:ans:" + hashlib.md5(normalize(k).encode()).hexdigest()
-                    if not cache_get(ck):
-                        cache_put(ck, answer)
-                        warmed += 1
-            self._send(200, {"warmed": warmed})
-            return
+        # No public GET endpoints — warm endpoint removed (KV persists across deploys)
         self._send(404, {"error": "Not found"})
 
     def do_OPTIONS(self):
@@ -349,5 +368,6 @@ class handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
         self.send_header("Access-Control-Allow-Origin", ALLOWED_ORIGIN)
+        self.send_header("X-Content-Type-Options", "nosniff")
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
