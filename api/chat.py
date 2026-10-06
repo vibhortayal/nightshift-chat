@@ -433,7 +433,8 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             norm_q = normalize(question)
-            cache_key = "chat:ans:" + hashlib.md5(norm_q.encode()).hexdigest()
+            # v2 prefix: invalidates entries cached by the pre-audit fuzzy logic
+            cache_key = "chat:ans:v2:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
