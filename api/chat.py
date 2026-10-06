@@ -212,6 +212,26 @@ def normalize(q):
     return re.sub(r"\s+", " ", q).strip()
 
 
+def levenshtein(a, b):
+    """Cheap typo-tolerant matching. Returns edit distance."""
+    if abs(len(a) - len(b)) > 2:
+        return 99
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j-1] + 1, prev[j-1] + (ca != cb)))
+        prev = cur
+    return prev[-1]
+
+
+def fuzzy_match(word, keywords, max_dist=2):
+    """True if word is within max_dist typos of any keyword (min length 4 to avoid noise)."""
+    if len(word) < 4:
+        return False
+    return any(levenshtein(word, k) <= max_dist for k in keywords if abs(len(word) - len(k)) <= 2)
+
+
 def check_faq(norm_q):
     # Whole-phrase match first (avoids "pocketful" shadowing "what is pocketful's pricing")
     for keywords, answer in FAQS:
@@ -322,11 +342,12 @@ class handler(BaseHTTPRequestHandler):
                 self._send(200, {"answer": faq, "cached": True})
                 return
 
-            # 3. Topic gate — match whole words AND substrings
-            # (catches "darkfactory", "nightshiftfactory", etc. as one word)
+            # 3. Topic gate — exact, substring, compound, and fuzzy (typo-tolerant)
             words = set(norm_q.split())
             joined = norm_q.replace(" ", "")
-            if not (words & TOPIC_KEYWORDS or any(k in joined for k in TOPIC_KEYWORDS)):
+            exact = bool(words & TOPIC_KEYWORDS or any(k in joined for k in TOPIC_KEYWORDS))
+            fuzzy = any(fuzzy_match(w, TOPIC_KEYWORDS) for w in words)
+            if not (exact or fuzzy):
                 log_question(question, "offtopic", True)
                 self._send(200, {"answer": OFFTOPIC_REPLY})
                 return
