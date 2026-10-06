@@ -1,10 +1,18 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>Nightshift chat widget</title>
 <style>
+:root{--sodium:#ffb81c;--rule:#2a3350;--chalk:#f5f0e8;--dust:#8a8fa3;--display:Georgia,serif;--text:system-ui,sans-serif}
+body{background:#020716;margin:0}
 /* ---------- nightshift chat widget ---------- */
-#nsc-chat-btn{position:fixed;right:22px;bottom:22px;z-index:9999;width:58px;height:58px;border-radius:50%;
-  background:var(--sodium);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;
-  box-shadow:0 4px 20px rgba(255,184,28,.35);transition:transform .15s}
+#nsc-chat-btn{position:fixed;right:22px;bottom:22px;z-index:9999;width:62px;height:62px;border-radius:50%;
+  background:#0a1128;border:2px solid var(--sodium);cursor:pointer;display:flex;align-items:center;justify-content:center;
+  box-shadow:0 4px 20px rgba(255,184,28,.35);transition:transform .15s;overflow:hidden;padding:0}
 #nsc-chat-btn:hover{transform:scale(1.06)}
-#nsc-chat-btn svg{width:26px;height:26px;fill:#020716}
+#nsc-chat-btn img{width:100%;height:100%;object-fit:cover}
+#nsc-chat-bubble{position:fixed;right:90px;bottom:34px;z-index:9999;background:#16213a;color:var(--chalk);
+  border:1px solid var(--rule);border-radius:14px 14px 4px 14px;padding:8px 14px;font-size:.85rem;
+  box-shadow:0 4px 16px rgba(0,0,0,.4);white-space:nowrap;cursor:pointer}
+#nsc-chat-bubble b{color:var(--sodium)}
 #nsc-chat-panel{position:fixed;right:22px;bottom:92px;z-index:9999;width:min(380px,calc(100vw - 44px));height:480px;
   max-height:calc(100vh - 130px);background:#0a1128;border:1px solid var(--rule);border-radius:14px;
   display:none;flex-direction:column;overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.5)}
@@ -27,10 +35,13 @@
 #nsc-chat-send:disabled{opacity:.5;cursor:default}
 </style>
 <button id="nsc-chat-btn" aria-label="Chat about Nightshift">
-  <svg viewBox="0 0 24 24"><path d="M4 2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2H8l-4 4V4a2 2 0 0 1 2-2z"/></svg>
+  <img src="assets/spark-avatar.jpg" alt="Spark">
 </button>
+<div id="nsc-chat-bubble"><b>Questions?</b> Ask Spark ✦</div>
 <div id="nsc-chat-panel" role="dialog" aria-label="Nightshift chat">
-  <div id="nsc-chat-head"><b>Ask <span>Nightshift</span></b><button id="nsc-chat-close" aria-label="Close">×</button></div>
+  <div id="nsc-chat-head"><b>Ask <span>Nightshift</span> <span style="font-size:.7rem;color:var(--dust);text-transform:none;letter-spacing:0">AI assistant</span></b><button id="nsc-chat-close" aria-label="Close">×</button></div>
+  <div style="padding:6px 16px;font-size:.75rem;color:var(--dust);border-bottom:1px solid var(--rule)">Answers from the project repo. Questions are logged (PII scrubbed) for 30 days.</div>
+  <div id="nsc-chips" style="display:flex;gap:6px;flex-wrap:wrap;padding:10px 14px 0"></div>
   <div id="nsc-chat-msgs"></div>
   <form id="nsc-chat-form">
     <input id="nsc-chat-input" type="text" placeholder="Ask about the factory…" autocomplete="off" maxlength="500">
@@ -40,22 +51,86 @@
 <script>
 (function(){
   // Set this to your deployed Vercel URL after `vercel --prod`
-  var CHAT_API = "https://nightshift-chat.vercel.app/api/chat";
+  var CHAT_API = "https://nightshift-chat-vibhor-t.vercel.app/api/chat";
   var btn=document.getElementById('nsc-chat-btn'), panel=document.getElementById('nsc-chat-panel'),
       close=document.getElementById('nsc-chat-close'), msgs=document.getElementById('nsc-chat-msgs'),
       form=document.getElementById('nsc-chat-form'), input=document.getElementById('nsc-chat-input'),
-      send=document.getElementById('nsc-chat-send');
+      send=document.getElementById('nsc-chat-send'), bubble=document.getElementById('nsc-chat-bubble');
   function addMsg(text, cls){
-    var d=document.createElement('div'); d.className='nsc-msg '+cls; d.textContent=text;
+    var d=document.createElement('div'); d.className='nsc-msg '+cls;
+    if(cls.indexOf('bot')!==-1){
+      // Linkify http(s) URLs safely: text nodes + anchor elements, never innerHTML
+      var urlRe=/(https?:\/\/[^\s)]+)/g, last=0, m;
+      while((m=urlRe.exec(text))!==null){
+        if(m.index>last) d.appendChild(document.createTextNode(text.slice(last,m.index)));
+        var a=document.createElement('a');
+        a.href=m[1]; a.textContent=m[1]; a.target='_blank'; a.rel='noopener';
+        a.style.color='var(--sodium)'; a.style.wordBreak='break-all';
+        d.appendChild(a); last=m.index+m[1].length;
+      }
+      if(last<text.length) d.appendChild(document.createTextNode(text.slice(last)));
+      if(last===0) d.textContent=text;
+    } else {
+      d.textContent=text;
+    }
     msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d;
   }
   addMsg("Hi! Ask me anything about the Nightshift factory, the hackathon, or how we built Pocketful.", "bot");
-  btn.onclick=function(){ panel.classList.toggle('open'); if(panel.classList.contains('open')) input.focus(); };
-  close.onclick=function(){ panel.classList.remove('open'); };
+  // Suggested question chips — zero API cost, tap to ask
+  var CHIPS=["What is the Nightshift factory?","Who built this?","What is Pocketful?","How does it work?"];
+  var chipsEl=document.getElementById('nsc-chips');
+  CHIPS.forEach(function(c){
+    var b=document.createElement('button');
+    b.type='button'; b.textContent=c;
+    b.style.cssText='background:#16213a;border:1px solid var(--rule);border-radius:20px;color:var(--chalk);padding:6px 12px;font-size:.8rem;cursor:pointer;font-family:var(--text)';
+    b.onclick=function(){ input.value=c; form.requestSubmit(); chipsEl.style.display='none'; };
+    chipsEl.appendChild(b);
+  });
+  function togglePanel(force){
+    var open = force!==undefined ? force : !panel.classList.contains('open');
+    panel.classList.toggle('open', open);
+    bubble.style.display = open ? 'none' : '';
+    if(open) input.focus();
+  }
+  btn.onclick=function(){ togglePanel(); };
+  bubble.onclick=function(){ togglePanel(true); };
+  close.onclick=function(){ togglePanel(false); };
+  // Client-side FAQ — answered instantly, zero backend/API cost
+  var CLIENT_FAQ=[
+    [["what is the nightshift factory","what is nightshift","what is dark factory","whats nightshift"],
+     "Dark Factory is a three-seat AI software factory on the Band platform: Architect (plans), Implementer (builds), Verifier (checks). One human message starts a run; the seats handle everything after.\nMore: https://github.com/vibhortayal/nightshift-pocketful"],
+    [["who built","who made","who created","your team","the team"],
+     "Team Nightshift: Vibhor Tayal (human) plus AI agents Spark, Instinct, and Claude — built for the WeAreDevelopers x BAND hackathon.\nMore: https://vibhortayal.github.io/nightshift/"],
+    [["pocketful","what did it build","what was built","the app"],
+     "Pocketful — a kids' pocket-money/savings app, built through 4 of 4 stages in 2h 27min (Run 7, Oct 2 2026).\nMore: https://github.com/vibhortayal/nightshift-pocketful"],
+    [["how does it work","how it works","how do the seats work","the process"],
+     "Architect turns the spec into a checklist; Implementer builds one exact version; Verifier tests it independently and gives one PASS/BLOCK verdict. Five BLOCKs stops the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"],
+    [["cost","how much","tokens","expensive"],
+     "The submitted run used ~141M tokens (~$59 at list price), covered by a Claude Max subscription — no per-run bill.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"]
+  ];
+  function clientFaq(q){
+    var nq=q.toLowerCase().replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim();
+    // Whole-phrase match first (avoids "pocketful" shadowing longer questions)
+    for(var i=0;i<CLIENT_FAQ.length;i++){
+      var keys=CLIENT_FAQ[i][0];
+      for(var j=0;j<keys.length;j++){
+        var k=keys[j];
+        if(nq===k||nq.indexOf(k+" ")===0||nq.lastIndexOf(" "+k)===nq.length-k.length-1) return CLIENT_FAQ[i][1];
+      }
+    }
+    // Substring fallback
+    for(var i2=0;i2<CLIENT_FAQ.length;i2++){
+      var keys2=CLIENT_FAQ[i2][0];
+      for(var j2=0;j2<keys2.length;j2++){ if(nq.indexOf(keys2[j2])!==-1) return CLIENT_FAQ[i2][1]; }
+    }
+    return null;
+  }
   form.onsubmit=function(e){
     e.preventDefault();
     var q=input.value.trim(); if(!q) return;
     addMsg(q, "user"); input.value=""; send.disabled=true;
+    var local=clientFaq(q);
+    if(local){ addMsg(local, "bot"); send.disabled=false; msgs.scrollTop=msgs.scrollHeight; return; }
     var t=addMsg("Thinking…", "bot thinking");
     fetch(CHAT_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})})
       .then(function(r){ return r.json(); })
@@ -65,3 +140,4 @@
   };
 })();
 </script>
+</body></html>

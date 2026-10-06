@@ -9,11 +9,10 @@ import urllib.error
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
 
-CONTEXT_URL = "https://raw.githubusercontent.com/vibhortayal/nightshift-chat/main/CONTEXT.md"
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
-# CONTEXT.md is bundled at deploy (read from disk) — a push can't silently change
-# what the bot says without a redeploy. Fallback to URL only if the file is missing.
+# CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
+# A push can never silently change what the bot says; it takes a redeploy.
 def _load_context():
     here = os.path.dirname(os.path.abspath(__file__))
     for p in (os.path.join(here, "..", "CONTEXT.md"), os.path.join(here, "CONTEXT.md")):
@@ -22,11 +21,7 @@ def _load_context():
                 return f.read()
         except OSError:
             pass
-    try:
-        with urllib.request.urlopen(CONTEXT_URL, timeout=10) as r:
-            return r.read().decode("utf-8", errors="ignore")
-    except Exception:
-        return ""
+    return ""
 
 _BUNDLED_CONTEXT = _load_context()
 if not _BUNDLED_CONTEXT.strip():
@@ -184,12 +179,15 @@ def check_ip_daily_cap(ip):
 
 
 def scrub_pii(text):
-    """Remove emails, phones, URLs, and long digit sequences."""
+    """Remove emails, phones, URLs, domains, and names."""
     text = re.sub(r"[\w.+-]+@[\w-]+\.[\w.]+", "[email]", text)
     text = re.sub(r"https?://\S+", "[url]", text)
+    text = re.sub(r"\b(?:www\.)?[\w-]+\.(?:com|net|org|io|ai|dev|app)\b", "[domain]", text)
     text = re.sub(r"\+?[\d\s().-]{10,}", "[phone]", text)
-    # Common name pattern: "my name is X" / "i am X" — redact the next word
-    text = re.sub(r"\b(my name is|i am|i'm)\s+\w+", r"\1 [name]", text, flags=re.IGNORECASE)
+    # Names: "my name is John Smith", "call me Jane", "this is Bob Jones", "I am Alice"
+    text = re.sub(
+        r"\b(my name is|call me|this is|i am|i'm)\s+[A-Z][a-z]+(?:\s+[A-Z][a-z]+){0,2}",
+        r"\1 [name]", text)
     return text[:200]
 
 
@@ -218,10 +216,12 @@ def check_faq(norm_q):
         for k in keywords:
             if k == norm_q or norm_q.startswith(k + " ") or norm_q.endswith(" " + k):
                 return answer
-    # Then substring fallback
+    # Substring fallback only for longer, specific phrases (3+ words).
+    # Short ones like "who made" must match as a whole phrase above.
     for keywords, answer in FAQS:
-        if any(k in norm_q for k in keywords):
-            return answer
+        for k in keywords:
+            if len(k.split()) >= 3 and k in norm_q:
+                return answer
     return None
 
 
