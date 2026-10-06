@@ -58,22 +58,28 @@ body{background:#020716;margin:0}
       send=document.getElementById('nsc-chat-send'), bubble=document.getElementById('nsc-chat-bubble');
   function addMsg(text, cls){
     var d=document.createElement('div'); d.className='nsc-msg '+cls;
-    if(cls.indexOf('bot')!==-1){
-      // Linkify http(s) URLs safely: text nodes + anchor elements, never innerHTML
-      var urlRe=/(https?:\/\/[^\s)]+)/g, last=0, m;
-      while((m=urlRe.exec(text))!==null){
-        if(m.index>last) d.appendChild(document.createTextNode(text.slice(last,m.index)));
-        var a=document.createElement('a');
-        a.href=m[1]; a.textContent=m[1]; a.target='_blank'; a.rel='noopener';
-        a.style.color='var(--sodium)'; a.style.wordBreak='break-all';
-        d.appendChild(a); last=m.index+m[1].length;
-      }
-      if(last<text.length) d.appendChild(document.createTextNode(text.slice(last)));
-      if(last===0) d.textContent=text;
-    } else {
-      d.textContent=text;
-    }
+    if(cls.indexOf('bot')!==-1){ linkify(d, text); }
+    else { d.textContent=text; }
     msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d;
+  }
+  function linkify(el, text){
+    // Linkify http(s) URLs safely: text nodes + anchor elements, never innerHTML
+    var urlRe=/(https?:\/\/[^\s)]+)/g, last=0, m, found=false;
+    while((m=urlRe.exec(text))!==null){
+      found=true;
+      if(m.index>last) el.appendChild(document.createTextNode(text.slice(last,m.index)));
+      var a=document.createElement('a');
+      a.href=m[1]; a.textContent=m[1]; a.target='_blank'; a.rel='noopener';
+      a.style.color='var(--sodium)'; a.style.wordBreak='break-all';
+      el.appendChild(a); last=m.index+m[1].length;
+    }
+    if(last<text.length) el.appendChild(document.createTextNode(text.slice(last)));
+    if(!found) el.textContent=text;
+  }
+  function setBotText(el, text){
+    el.classList.remove('thinking');
+    el.textContent='';
+    linkify(el, text);
   }
   addMsg("Hi! Ask me anything about the Nightshift factory, the hackathon, or how we built Pocketful.", "bot");
   // Suggested question chips — zero API cost, tap to ask
@@ -110,18 +116,22 @@ body{background:#020716;margin:0}
   ];
   function clientFaq(q){
     var nq=q.toLowerCase().replace(/[^a-z0-9 ]/g,"").replace(/\s+/g," ").trim();
-    // Whole-phrase match first (avoids "pocketful" shadowing longer questions)
+    function endsWith(str, suffix){ return str.slice(-suffix.length)===suffix; }
+    // Whole-phrase match first
     for(var i=0;i<CLIENT_FAQ.length;i++){
       var keys=CLIENT_FAQ[i][0];
       for(var j=0;j<keys.length;j++){
         var k=keys[j];
-        if(nq===k||nq.indexOf(k+" ")===0||nq.lastIndexOf(" "+k)===nq.length-k.length-1) return CLIENT_FAQ[i][1];
+        if(nq===k||nq.indexOf(k+" ")===0||endsWith(nq," "+k)) return CLIENT_FAQ[i][1];
       }
     }
-    // Substring fallback
+    // Substring fallback only for longer, specific phrases (3+ words)
     for(var i2=0;i2<CLIENT_FAQ.length;i2++){
       var keys2=CLIENT_FAQ[i2][0];
-      for(var j2=0;j2<keys2.length;j2++){ if(nq.indexOf(keys2[j2])!==-1) return CLIENT_FAQ[i2][1]; }
+      for(var j2=0;j2<keys2.length;j2++){
+        var k2=keys2[j2];
+        if(k2.split(" ").length>=3&&nq.indexOf(k2)!==-1) return CLIENT_FAQ[i2][1];
+      }
     }
     return null;
   }
@@ -134,8 +144,8 @@ body{background:#020716;margin:0}
     var t=addMsg("Thinking…", "bot thinking");
     fetch(CHAT_API,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({question:q})})
       .then(function(r){ return r.json(); })
-      .then(function(d){ t.classList.remove('thinking'); t.textContent=d.answer||d.error||"Sorry, something went wrong."; })
-      .catch(function(){ t.classList.remove('thinking'); t.textContent="Couldn't reach the chat backend. Try again in a moment."; })
+      .then(function(d){ setBotText(t, d.answer||d.error||"Sorry, something went wrong."); })
+      .catch(function(){ setBotText(t, "Couldn't reach the chat backend. Try again in a moment."); })
       .finally(function(){ send.disabled=false; msgs.scrollTop=msgs.scrollHeight; });
   };
 })();
