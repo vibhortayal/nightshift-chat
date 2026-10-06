@@ -9,6 +9,12 @@ import urllib.error
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler
 
+try:
+    from rapidfuzz import fuzz, process
+    HAS_RAPIDFUZZ = True
+except ImportError:
+    HAS_RAPIDFUZZ = False
+
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
@@ -296,23 +302,28 @@ def word_score(q_word, key_words):
 
 
 def faq_score(norm_q, keywords):
-    """Score a question against FAQ keywords (0-1). Handles reordering + typos."""
+    """Score a question against FAQ keywords (0-100). Uses RapidFuzz if available."""
+    key_text = " ".join(sorted(set(" ".join(keywords).split())))
+    if HAS_RAPIDFUZZ:
+        # token_set_ratio handles reordering + typos in one shot
+        return fuzz.token_set_ratio(norm_q, key_text)
+    # Fallback: hand-rolled multi-signal
     q_words = [w for w in norm_q.split() if len(w) > 2]
-    key_words = set()
-    for k in keywords:
-        key_words.update(k.split())
+    key_words = set(key_text.split())
     if not q_words or not key_words:
-        return 0.0
-    # Average best-word score, weighted toward question coverage
+        return 0
     total = sum(word_score(w, key_words) for w in q_words)
-    return total / len(q_words)
+    return total / len(q_words) * 100
 
 
-def fuzzy_match(word, keywords, max_dist=2):
-    """True if word is within max_dist typos of any keyword (min length 4 to avoid noise)."""
+def fuzzy_match(word, keywords, min_score=80):
+    """Typo-tolerant word match. Uses RapidFuzz if available."""
     if len(word) < 4:
         return False
-    return any(levenshtein(word, k) <= max_dist for k in keywords if abs(len(word) - len(k)) <= 2)
+    if HAS_RAPIDFUZZ:
+        best = process.extractOne(word, list(keywords), scorer=fuzz.ratio)
+        return best and best[1] >= min_score
+    return any(levenshtein(word, k) <= 2 for k in keywords if abs(len(word) - len(k)) <= 2)
 
 
 def check_faq(norm_q):
@@ -328,8 +339,8 @@ def check_faq(norm_q):
             if len(k.split()) >= 3 and k in norm_q:
                 return answer
     # Fuzzy fallback: scored multi-signal match (typos, transpositions, reordering)
-    # Picks the best-scoring FAQ instead of first-match
-    best_faq, best_score = None, 0.55  # threshold
+    # Picks the best-scoring FAQ instead of first-match. Threshold 55/100.
+    best_faq, best_score = None, 55
     for keywords, answer in FAQS:
         s = faq_score(norm_q, keywords)
         if s > best_score:
