@@ -225,6 +225,89 @@ def levenshtein(a, b):
     return prev[-1]
 
 
+def jaro_winkler(a, b):
+    """Similarity 0-1, good for short strings and transpositions."""
+    if a == b:
+        return 1.0
+    la, lb = len(a), len(b)
+    if not la or not lb:
+        return 0.0
+    match_dist = max(la, lb) // 2 - 1
+    a_match = [False] * la
+    b_match = [False] * lb
+    matches = 0
+    for i in range(la):
+        lo = max(0, i - match_dist)
+        hi = min(lb, i + match_dist + 1)
+        for j in range(lo, hi):
+            if not b_match[j] and a[i] == b[j]:
+                a_match[i] = b_match[j] = True
+                matches += 1
+                break
+    if not matches:
+        return 0.0
+    t = 0
+    k = 0
+    for i in range(la):
+        if a_match[i]:
+            while not b_match[k]:
+                k += 1
+            if a[i] != b[k]:
+                t += 1
+            k += 1
+    t //= 2
+    jaro = (matches / la + matches / lb + (matches - t) / matches) / 3
+    # Winkler boost for common prefix
+    prefix = 0
+    for i in range(min(4, la, lb)):
+        if a[i] == b[i]:
+            prefix += 1
+        else:
+            break
+    return jaro + prefix * 0.1 * (1 - jaro)
+
+
+def trigrams(s):
+    s = f" {s} "
+    return {s[i:i+3] for i in range(len(s) - 2)}
+
+
+def trigram_sim(a, b):
+    ta, tb = trigrams(a), trigrams(b)
+    if not ta or not tb:
+        return 0.0
+    return len(ta & tb) / len(ta | tb)
+
+
+def word_score(q_word, key_words):
+    """Best similarity of q_word against any keyword (0-1). Combines signals."""
+    best = 0.0
+    for kw in key_words:
+        if abs(len(q_word) - len(kw)) > 3:
+            continue
+        jw = jaro_winkler(q_word, kw)
+        tri = trigram_sim(q_word, kw)
+        lev = levenshtein(q_word, kw)
+        lev_score = max(0, 1 - lev / max(len(q_word), len(kw)))
+        # Weighted: Jaro-Winkler catches transpositions, trigrams catch fragments
+        score = 0.5 * jw + 0.3 * tri + 0.2 * lev_score
+        best = max(best, score)
+    return best
+
+
+def faq_score(norm_q, keywords):
+    """Score a question against FAQ keywords (0-1). Handles reordering + typos."""
+    q_words = [w for w in norm_q.split() if len(w) > 2]
+    key_words = set()
+    for k in keywords:
+        key_words.update(k.split())
+    if not q_words or not key_words:
+        return 0.0
+    # Average best-word score, weighted toward question coverage
+    total = sum(word_score(w, key_words) for w in q_words)
+    return total / len(q_words)
+
+
 def fuzzy_match(word, keywords, max_dist=2):
     """True if word is within max_dist typos of any keyword (min length 4 to avoid noise)."""
     if len(word) < 4:
@@ -244,13 +327,15 @@ def check_faq(norm_q):
         for k in keywords:
             if len(k.split()) >= 3 and k in norm_q:
                 return answer
-    # Fuzzy fallback: typo-tolerant word match
+    # Fuzzy fallback: scored multi-signal match (typos, transpositions, reordering)
+    # Picks the best-scoring FAQ instead of first-match
+    best_faq, best_score = None, 0.55  # threshold
     for keywords, answer in FAQS:
-        key_words = set()
-        for k in keywords:
-            key_words.update(k.split())
-        if any(fuzzy_match(w, key_words) for w in norm_q.split()):
-            return answer
+        s = faq_score(norm_q, keywords)
+        if s > best_score:
+            best_faq, best_score = answer, s
+    if best_faq:
+        return best_faq
     return None
 
 
