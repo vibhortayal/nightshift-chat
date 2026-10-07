@@ -238,14 +238,14 @@ def check_ip_daily_cap(ip):
 
 
 def check_strikes(ip):
-    """Three-strike rule for off-topic questions. Returns (strikes, blocked)."""
+    """Five-strike rule for off-topic/injection questions. Returns (strikes, blocked)."""
     iphash = hashlib.md5(ip.encode()).hexdigest()[:12]
     key = f"chat:strikes:{iphash}"
     count = kv_call("INCR", key)
     if count is None:
         return 0, False
     kv_call("EXPIRE", key, 86400)  # reset daily
-    return count, count >= 3
+    return count, count >= 5
 
 
 INJECTION_PATTERNS = [
@@ -535,8 +535,9 @@ class handler(BaseHTTPRequestHandler):
                 strikes, blocked = check_strikes(ip)
                 if blocked:
                     reply = "Sorry, I can't help you."
-                elif strikes == 2:
-                    reply = "I can't help with that. This is your second warning — one more and I won't be able to help further."
+                elif strikes >= 2:
+                    remaining = 5 - strikes
+                    reply = f"I can't help with that. Warning {strikes} of 5: {remaining} more and I won't be able to help further."
                 else:
                     reply = "I can't help with that."
                 log_question(question, "injection", True, reply, ip=ip)
@@ -553,8 +554,9 @@ class handler(BaseHTTPRequestHandler):
                 strikes, blocked = check_strikes(ip)
                 if blocked:
                     reply = "Sorry, I can't help you."
-                elif strikes == 2:
-                    reply = OFFTOPIC_REPLY + "\n\nThis is your second off-topic question. One more and I won't be able to help further."
+                elif strikes >= 2:
+                    remaining = 5 - strikes
+                    reply = OFFTOPIC_REPLY + f"\n\nWarning {strikes} of 5: please stick to questions about the project. {remaining} more off-topic question{'s' if remaining > 1 else ''} and I won't be able to help further."
                 else:
                     reply = OFFTOPIC_REPLY
                 log_question(question, "offtopic", True, reply, ip=ip)
