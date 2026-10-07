@@ -17,7 +17,7 @@ except ImportError:
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # Bump on every deploy so we can tell which version is live
-CHAT_VERSION = "2026-10-07-12"
+CHAT_VERSION = "2026-10-07-13"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
@@ -128,6 +128,33 @@ def is_stage_feature_question(norm_q):
     return bool(words & {"stage", "stages"}) and bool(words & _STAGE_FEATURE_VERBS)
 
 
+# R3 fix (-13): "Is a person required to be involved once a run has begun?"
+# must return a fixed answer — the LLM paraphrase ("the task dispatched per
+# stage is the only human input") wrongly implied per-stage human messages,
+# while the submitted run used ONE message at the start.
+HUMAN_RUN_ANSWER = (
+    "No — after the single starting message, no human is involved in a run; "
+    "no seat ever asks the human anything. The event rules allow per-stage "
+    "dispatch (one message per stage), but our submitted run used one human "
+    "message to start all 4 stages.\n"
+    "More: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"
+)
+_HUMAN_WORDS = {"person", "people", "human", "humans"}
+_INVOLVE_WORDS = {"involv", "involved", "involvement", "involve", "requir", "required",
+                  "require", "need", "needs", "needed", "necess", "necessary",
+                  "help", "helps", "helping", "participat"}
+_RUN_WORDS = {"run", "begun", "begin", "begins", "start", "starts", "started",
+              "during", "after"}
+
+
+def is_human_run_question(norm_q):
+    if has_negation(norm_q):
+        return False
+    words = set(norm_q.split())
+    return (bool(words & _HUMAN_WORDS) and bool(words & _INVOLVE_WORDS)
+            and bool(words & _RUN_WORDS))
+
+
 OFFTOPIC_REPLY = ("I only answer questions about Team Nightshift, the Dark Factory, and the hackathon. "
                   "Try asking about how the factory works, the seats, or the build. "
                   "Repo: https://github.com/vibhortayal/nightshift-pocketful "
@@ -216,6 +243,11 @@ FAQS = [
      "Python backend with Docker. Each stage has its own Dockerfile.\nRepo: https://github.com/vibhortayal/nightshift-pocketful"),
     ({"what models were used", "which models", "what ai models"},
      "The factory seats ran on AI models via the BAND platform. See FACTORY.md for details.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
+    ({"did the factory prove that opus is better than other models",
+      "did the factory prove opus is better", "did you prove opus is better",
+      "did the factory compare models", "is opus better than other models",
+      "model comparison results"},
+     "No — the factory never compared models, so nothing was proven about Opus vs other models. The seats used the models listed: Architect claude-opus-5-5, Implementer claude-sonnet-5-5, Verifier claude-opus-5-5.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"when did you start", "when did development start"},
      "22 runs over six days, September 28 to October 3, 2026. Run 7 (Oct 2) was submitted.\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"what went wrong", "what failed", "what were the failures"},
@@ -553,6 +585,8 @@ def check_faq(norm_q):
     # without depending on a single alias.
     if is_stage_feature_question(norm_q):
         return STAGE_FEATURES_ANSWER
+    if is_human_run_question(norm_q):
+        return HUMAN_RUN_ANSWER
     # Exact or ends-with match only. No prefix matching — "who built the pyramids"
     # must go to the LLM, not the team FAQ.
     for keywords, answer in FAQS:
@@ -663,9 +697,9 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             norm_q = normalize(question)
-            # v14 prefix: -12 — phrasing-agnostic stage-feature match (R1) +
-            # track-choice FAQ (R2, names Tablekeeper, reason not documented)
-            cache_key = "chat:ans:v14:" + hashlib.md5(norm_q.encode()).hexdigest()
+            # v15 prefix: -13 — fixed human-run answer (R3) + models FAQ (no model
+            # comparison; seats' models listed); cache v15
+            cache_key = "chat:ans:v15:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
