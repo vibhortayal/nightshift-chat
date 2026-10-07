@@ -248,6 +248,18 @@ def check_strikes(ip):
     return count, count >= 3
 
 
+INJECTION_PATTERNS = [
+    "ignore previous", "ignore all instructions", "ignore prior",
+    "system prompt", "print your prompt", "reveal your prompt",
+    "api key", "credentials", "secret key",
+]
+
+
+def is_injection(norm_q):
+    """Detect prompt injection attempts."""
+    return any(p in norm_q for p in INJECTION_PATTERNS)
+
+
 def scrub_pii(text):
     """Remove emails, phones, URLs, domains, and names."""
     text = re.sub(r"[\w.+-]+@[\w-]+\.[\w.]+", "[email]", text)
@@ -516,6 +528,19 @@ class handler(BaseHTTPRequestHandler):
                 cache_put(cache_key, faq)
                 log_question(question, "faq", True, faq, ip=ip)
                 self._send(200, {"answer": faq, "cached": True})
+                return
+
+            # 2b. Injection check — before topic gate (injections may mention project keywords)
+            if is_injection(norm_q):
+                strikes, blocked = check_strikes(ip)
+                if blocked:
+                    reply = "Sorry, I can't help you."
+                elif strikes == 2:
+                    reply = "I can't help with that. This is your second warning — one more and I won't be able to help further."
+                else:
+                    reply = "I can't help with that."
+                log_question(question, "injection", True, reply, ip=ip)
+                self._send(200, {"answer": reply})
                 return
 
             # 3. Topic gate — exact, substring, compound, and fuzzy (typo-tolerant)
