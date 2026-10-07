@@ -17,7 +17,7 @@ except ImportError:
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # Bump on every deploy so we can tell which version is live
-CHAT_VERSION = "2026-10-07-4"
+CHAT_VERSION = "2026-10-07-5"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
@@ -171,7 +171,7 @@ FAQS = [
     ({"what went wrong", "what failed", "what were the failures"},
      "Early runs had background task drops and unbounded verification — these became design rules for the submitted 2h 27min run.\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"is $59 an actual bill", "$59 actual bill", "estimated model cost", "is 59 dollars real", "actual cost vs estimated"},
-     "The $59 is a list-price estimate for ~141M tokens — not an actual bill. The 2h 27min run was covered by a Claude Max subscription, so there was no per-run charge.\nMore: https://vibhortayal.github.io/nightshift/"),
+     "2 hours and 27 minutes, ~141M tokens (~$59 at list price — not an actual bill, covered by Claude Max subscription).\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"where is the full chat log", "chat log of the submitted run", "room log", "where is room.json"},
      "The room log is at https://github.com/vibhortayal/nightshift-pocketful/blob/main/room.json"),
     ({"features by stage", "what was built in each stage", "stage features", "what features were built in each stage", "features each stage"},
@@ -598,8 +598,8 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             norm_q = normalize(question)
-            # v6 prefix: invalidate stale pre-fix answers
-            cache_key = "chat:ans:v6:" + hashlib.md5(norm_q.encode()).hexdigest()
+            # v7 prefix: fix duration wording
+            cache_key = "chat:ans:v7:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
