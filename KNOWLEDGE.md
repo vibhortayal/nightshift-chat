@@ -38,7 +38,7 @@ Software that can understand language, recognize patterns, and make decisions â€
 Source: https://en.wikipedia.org/wiki/Artificial_intelligence
 
 **What is an AI agent?**
-An AI program that can pursue goals, use software or other tools, and take actions with some level of autonomy.
+An AI program that can pursue goals, use tools, and take actions with some autonomy. In Dark Factory, the three seats are AI agents: Architect (plans), Implementer (builds), Verifier (checks).
 Source: https://en.wikipedia.org/wiki/AI_agent
 
 **What is an LLM?**
