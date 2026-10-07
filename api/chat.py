@@ -17,7 +17,7 @@ except ImportError:
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # Bump on every deploy so we can tell which version is live
-CHAT_VERSION = "2026-10-06-5"
+CHAT_VERSION = "2026-10-07-1"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
@@ -125,9 +125,9 @@ FAQS = [
     ({"did the hackathon require no human", "factory work without human help", "no human help"},
      "Our run used a single human message to start — the seats then handled all 4 stages autonomously. (The event allows per-stage dispatch; we chose single-message.)\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"how are entries judged", "how are hackathon entries judged", "judging criteria"},
-     "Entries are judged on factory methodology, working software, and submission quality. Details: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon"),
-    ({"hackathon tracks", "what were the tracks", "tracks and prizes"},
-     "Two tracks: Tablekeeper (restaurant reservations) and Pocketful (wallet/payments). Prize details: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon"),
+     "Judging: Factory 50%, App 25%, Agent Teamwork 25%. Details: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon"),
+    ({"hackathon tracks", "what were the tracks", "tracks and prizes", "prize amounts", "how much prize"},
+     "Two tracks: Tablekeeper (restaurant reservations) and Pocketful (wallet/payments). $6,000+ total prizes — per track: 1st $1,500, 2nd $1,000, 3rd $500.\nDetails: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon"),
     ({"biggest lessons", "lessons from the hackathon", "what did you learn"},
      "Over 22 runs in six days, failures like background task drops and unbounded verification became design rules — leading to the streamlined 2h 27min submitted run.\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"different from coding assistant", "different from normal coding", "vs coding assistant"},
@@ -137,7 +137,7 @@ FAQS = [
     ({"what did you submit", "what was submitted"},
      "Team Nightshift submitted Dark Factory: a three-seat AI factory that built Pocketful (kids' savings app) through 4 stages in 2h 27min.\nSubmission: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon/nightshift/dark-factory-built-by-nightshift"),
     ({"who was on team nightshift", "what did each member do", "team members and roles"},
-     "Vibhor Tayal (human, product owner) with AI agents Spark, Instinct, and Claude. The factory seats were Architect (plans), Implementer (builds), Verifier (checks).\nMore: https://vibhortayal.github.io/nightshift/"),
+     "Vibhor Tayal (human, product owner). AI agents: Spark (coordination), Instinct (VM ops/implementation), Claude (advisor). Factory seats: Architect (plans), Implementer (builds), Verifier (checks).\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"what are the three seats", "three seats are"},
      "Architect (plans and accepts), Implementer (builds), Verifier (tests independently). One human message starts the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"which hackathon", "what hackathon is this for", "when did it run"},
@@ -582,8 +582,8 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             norm_q = normalize(question)
-            # v2 prefix: invalidates entries cached by the pre-audit fuzzy logic
-            cache_key = "chat:ans:v2:" + hashlib.md5(norm_q.encode()).hexdigest()
+            # v3 prefix: invalidates pre-FAQ-expansion cached answers
+            cache_key = "chat:ans:v3:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
