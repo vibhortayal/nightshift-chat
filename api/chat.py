@@ -583,7 +583,13 @@ def validate_output(text):
                     "the seats, or the hackathon.\n"
                     "More: https://github.com/vibhortayal/nightshift-pocketful")
     # Cap length
-    return text[:1200]
+    text = text[:1200]
+    # Owner link rule: full https URLs only — normalize bare project domains
+    # (the model sometimes emits them scheme-less even when context has https)
+    text = re.sub(
+        r"(?<![\w:/])((?:github\.com|vibhortayal\.github\.io|pocketful\.duckdns\.org|lablab\.ai)(?:/[^\s]*)?)",
+        r"https://\1", text)
+    return text
 
 
 class handler(BaseHTTPRequestHandler):
