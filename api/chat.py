@@ -17,7 +17,7 @@ except ImportError:
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # Bump on every deploy so we can tell which version is live
-CHAT_VERSION = "2026-10-07-11"
+CHAT_VERSION = "2026-10-07-12"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
@@ -102,6 +102,32 @@ TOPIC_KEYWORDS = {
 # Note: "vibhor" intentionally excluded — personal questions about Vibhor
 # (e.g. "what is vibhor's weakness") are out of scope and get the generic reply.
 
+STAGE_FEATURES_ANSWER = ("Stage 1: wallet, payments, requests, splits. Stage 2: browser UI + holds. "
+                         "Stage 3: corrections, history, statements. Stage 4: refunds, batch, corrections. "
+                         "Details: https://github.com/vibhortayal/nightshift-pocketful")
+
+TRACK_CHOICE_ANSWER = ("Nightshift built on the Pocketful track (wallet/payments, Track 2). "
+                       "Tablekeeper was the event's other track (restaurant reservations). "
+                       "The sources don't document why Pocketful was chosen over Tablekeeper.\n"
+                       "More: https://github.com/vibhortayal/nightshift-pocketful")
+
+# R1 fix (-12): phrasing-agnostic stage-feature match. Any question mentioning
+# stage(s) together with feature/build/add/introduce/contain/include wording gets
+# the stage-features answer — covers "added", "introduced", "built", etc.
+# "do/does" is deliberately NOT a trigger: "do stages run in parallel" is a
+# dispatch question, not a stage-features question (those use explicit aliases).
+_STAGE_FEATURE_VERBS = {"feature", "features", "build", "builds", "built",
+                        "add", "adds", "added", "introduce", "introduces", "introduced",
+                        "contain", "contains", "include", "includes"}
+
+
+def is_stage_feature_question(norm_q):
+    if has_negation(norm_q):
+        return False
+    words = set(norm_q.split())
+    return bool(words & {"stage", "stages"}) and bool(words & _STAGE_FEATURE_VERBS)
+
+
 OFFTOPIC_REPLY = ("I only answer questions about Team Nightshift, the Dark Factory, and the hackathon. "
                   "Try asking about how the factory works, the seats, or the build. "
                   "Repo: https://github.com/vibhortayal/nightshift-pocketful "
@@ -116,6 +142,11 @@ FAQS = [
     ({"what is pocketful", "whats pocketful", "why pocketful", "why did you build pocketful",
       "why not tablekeeper", "pocketful vs tablekeeper"},
      "Pocketful — a wallet and payments service (Track 2, like Venmo), built through 4 of 4 stages in 2h 27min (Run 7, Oct 2 2026). The event's other track was Tablekeeper (restaurant reservations).\nMore: https://github.com/vibhortayal/nightshift-pocketful"),
+    ({"why did you choose pocketful", "why did you choose the pocketful track",
+      "why did you choose pocketful over tablekeeper", "why pocketful instead of tablekeeper",
+      "why did you pick pocketful instead of tablekeeper", "what made you pick pocketful instead of tablekeeper",
+      "why pocketful over tablekeeper", "why not the tablekeeper track", "why choose pocketful over tablekeeper"},
+     TRACK_CHOICE_ANSWER),
     ({"how does it work", "how it works", "how do the seats work"},
      "Architect turns the spec into a checklist; Implementer builds one exact version; Verifier tests it independently and gives one PASS/BLOCK verdict. Five BLOCKs stops the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"how much did it cost", "what did it cost", "run cost"},
@@ -195,8 +226,9 @@ FAQS = [
      "The room log is at https://github.com/vibhortayal/nightshift-pocketful/blob/main/room.json"),
     ({"features by stage", "what was built in each stage", "stage features", "what features were built in each stage", "features each stage",
       "what did each stage build", "list the stage features", "per-stage features", "features per stage", "stage by stage features",
-      "what does each stage do", "stage breakdown", "stages overview", "what happens in each stage"},
-     "Stage 1: wallet, payments, requests, splits. Stage 2: browser UI + holds. Stage 3: corrections, history, statements. Stage 4: refunds, batch, corrections. Details: https://github.com/vibhortayal/nightshift-pocketful"),
+      "what does each stage do", "what does stage 1 do", "what does stage 2 do", "what does stage 3 do", "what does stage 4 do",
+      "what do the stages do", "stage breakdown", "stages overview", "what happens in each stage"},
+     STAGE_FEATURES_ANSWER),
     ({"real money", "real-money deposits", "demo wallets reset", "seeded wallets", "can i top up", "top up demo",
       "demo deposit", "deposit money", "add money to the demo", "fund my demo wallet"},
      "No real money — demo wallets are seeded and reset hourly.\nTry it: https://pocketful.duckdns.org/"),
@@ -516,6 +548,11 @@ def fuzzy_gate_match(word, keywords, min_score=85):
 
 
 def check_faq(norm_q):
+    # R1 fix (-12): phrasing-agnostic stage-feature pre-match — any stage(s) +
+    # feature/verb phrasing ("added", "introduced", "built", ...) gets the answer
+    # without depending on a single alias.
+    if is_stage_feature_question(norm_q):
+        return STAGE_FEATURES_ANSWER
     # Exact or ends-with match only. No prefix matching — "who built the pyramids"
     # must go to the LLM, not the team FAQ.
     for keywords, answer in FAQS:
@@ -626,9 +663,9 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             norm_q = normalize(question)
-            # v12 prefix: CONTEXT.md grounding refresh (per-stage features, dispatch, human input,
-            # submit/eligibility/license facts, full-https links) + topic-gate keywords that missed -9
-            cache_key = "chat:ans:v13:" + hashlib.md5(norm_q.encode()).hexdigest()
+            # v14 prefix: -12 — phrasing-agnostic stage-feature match (R1) +
+            # track-choice FAQ (R2, names Tablekeeper, reason not documented)
+            cache_key = "chat:ans:v14:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
