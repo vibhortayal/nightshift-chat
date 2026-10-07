@@ -17,7 +17,7 @@ except ImportError:
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # Bump on every deploy so we can tell which version is live
-CHAT_VERSION = "2026-10-07-18"
+CHAT_VERSION = "2026-10-07-19"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
@@ -166,7 +166,7 @@ FAQS = [
       "what is darkfactory", "whats darkfactory", "what is a darkfactory"},
      "Dark Factory is a three-seat AI software factory on the Band platform: Architect (plans), Implementer (builds), Verifier (checks). One human message starts a run; the seats handle everything after.\nMore: https://github.com/vibhortayal/nightshift-pocketful"),
     ({"who built", "who made", "who created", "who made the video"},
-     "Team Nightshift: Vibhor (Product owner), Spark (Program manager), Instinct (QA and release manager). Factory seats: Architect, Implementer, Verifier.\nMore: https://vibhortayal.github.io/nightshift/"),
+     "Team Nightshift: Vibhor (Product owner), Spark (Program manager), Instinct (QA and release manager), Claude (Platform engineer). Factory seats: Architect, Implementer, Verifier.\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"what is pocketful", "whats pocketful", "why pocketful", "why did you build pocketful",
       "why not tablekeeper", "pocketful vs tablekeeper"},
      "Pocketful — a wallet and payments service (Track 2, like Venmo), built through 4 of 4 stages in 2h 27min (Run 7, Oct 2 2026). The event's other track was Tablekeeper (restaurant reservations).\nMore: https://github.com/vibhortayal/nightshift-pocketful"),
@@ -210,7 +210,7 @@ FAQS = [
      "Team Nightshift submitted Dark Factory: a three-seat AI factory that built Pocketful (wallet/payments, Track 2) through 4 stages in 2h 27min.\nSubmission: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon/nightshift/dark-factory-built-by-nightshift"),
     ({"who was on team nightshift", "what did each member do", "team members and roles",
       "who is on the team", "who are the team members"},
-     "Vibhor (Product owner, human), Spark (Program manager), Instinct (QA and release manager) — all AI agents except Vibhor. Factory seats: Architect (plans), Implementer (builds), Verifier (checks).\nMore: https://vibhortayal.github.io/nightshift/"),
+     "Vibhor (Product owner, human), Spark (Program manager), Instinct (QA and release manager), Claude (Platform engineer) — all AI agents except Vibhor. Factory seats: Architect (plans), Implementer (builds), Verifier (checks).\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"what are the three seats", "three seats are"},
      "Architect (plans and accepts), Implementer (builds), Verifier (tests independently). One human message starts the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"which hackathon", "what hackathon is this for", "when did it run"},
@@ -711,7 +711,7 @@ class handler(BaseHTTPRequestHandler):
             # v19 prefix: -18 — 3 FAQ chips (aliases for chips 2+3); -17 vibhor
             # topic-gate restore, N1/S6 fixes retained; cache v19 so cached
             # LLM answers for the two newly-FAQ'd questions can't shadow FAQ
-            cache_key = "chat:ans:v19:" + hashlib.md5(norm_q.encode()).hexdigest()
+            cache_key = "chat:ans:v20:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
