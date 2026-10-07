@@ -135,6 +135,31 @@ class handler(BaseHTTPRequestHandler):
 
         self._send(200, {"deleted": deleted, "day": day})
 
+    def do_PUT(self):
+        """Clear all strike counters. Password-protected. One-time use."""
+        if not self._check_auth():
+            self._send(401, {"error": "unauthorized"})
+            return
+
+        deleted = 0
+        cursor = 0
+        try:
+            while True:
+                result = kv_call("SCAN", cursor, "MATCH", "chat:strikes:*", "COUNT", 100)
+                if not result:
+                    break
+                cursor = int(result[0])
+                if result[1]:
+                    kv_call("DEL", *result[1])
+                    deleted += len(result[1])
+                if cursor == 0:
+                    break
+        except Exception as e:
+            self._send(500, {"error": f"clear failed: {e}", "deleted": deleted})
+            return
+
+        self._send(200, {"deleted": deleted})
+
     def do_OPTIONS(self):
         self.send_response(200)
         origin = self.headers.get("Origin", "")
