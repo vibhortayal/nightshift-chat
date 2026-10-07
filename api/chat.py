@@ -580,6 +580,11 @@ def fuzzy_gate_match(word, keywords, min_score=85):
 
 
 def check_faq(norm_q):
+    # Negation guard: questions with negation (not, n't, never, no) skip FAQ
+    # matching entirely — they go to the LLM for proper handling.
+    # Prevents "does the factory not use docker" matching the docker FAQ.
+    if has_negation(norm_q):
+        return None
     # R1 fix (-12): phrasing-agnostic stage-feature pre-match — any stage(s) +
     # feature/verb phrasing ("added", "introduced", "built", ...) gets the answer
     # without depending on a single alias.
