@@ -189,11 +189,16 @@ class handler(BaseHTTPRequestHandler):
 
         keys = []
         cursor = 0
+        scan_errors = 0
         try:
             while True:
-                result = kv_call("SCAN", cursor, "MATCH", "chat:log:*", "COUNT", 100)
+                result = kv_call("SCAN", cursor, "MATCH", "chat:log:*", "COUNT", 200)
                 if not result:
-                    break
+                    scan_errors += 1
+                    if scan_errors >= 3:
+                        break
+                    continue
+                scan_errors = 0
                 cursor = int(result[0])
                 keys.extend(result[1])
                 if cursor == 0:
