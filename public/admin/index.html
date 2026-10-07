@@ -28,6 +28,7 @@
 <div id="login">
   <input type="password" id="pw" placeholder="Admin password" autocomplete="off">
   <button onclick="load()">View logs</button>
+<button onclick="resetCaps()" style="margin-left:0.5rem">Reset daily caps</button>
   <label style="margin-left:1rem"><input type="checkbox" id="auto" checked> Auto-refresh (30s)</label>
 </div>
 <div id="error"></div>
@@ -104,6 +105,12 @@ async function clearLogs() {
   }
 }
 document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') load(); });
+    async function resetCaps() {
+      if (!confirm('Reset all daily LLM caps?')) return;
+      const r = await fetch('/api/admin/questions', { method: 'POST', headers: { 'X-Admin-Password': document.getElementById('pw').value } });
+      const j = await r.json();
+      alert('Reset: ' + JSON.stringify(j));
+    }
     setInterval(() => { if (document.getElementById('auto').checked && document.getElementById('pw').value) load(); }, 30000);
   </script>
 </body>

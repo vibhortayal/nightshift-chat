@@ -95,6 +95,46 @@ class handler(BaseHTTPRequestHandler):
 
         self._send(200, {"deleted": deleted})
 
+    def do_POST(self):
+        """Reset daily caps. Password-protected."""
+        if not self._check_auth():
+            self._send(401, {"error": "unauthorized"})
+            return
+
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+        day = datetime.now(ZoneInfo("America/Los_Angeles")).strftime("%Y-%m-%d")
+
+        deleted = 0
+        cursor = 0
+        try:
+            while True:
+                result = kv_call("SCAN", cursor, "MATCH", "chat:daily:*", "COUNT", 100)
+                if not result:
+                    break
+                cursor = int(result[0])
+                if result[1]:
+                    kv_call("DEL", *result[1])
+                    deleted += len(result[1])
+                if cursor == 0:
+                    break
+            cursor = 0
+            while True:
+                result = kv_call("SCAN", cursor, "MATCH", "chat:ipdaily:*", "COUNT", 100)
+                if not result:
+                    break
+                cursor = int(result[0])
+                if result[1]:
+                    kv_call("DEL", *result[1])
+                    deleted += len(result[1])
+                if cursor == 0:
+                    break
+        except Exception as e:
+            self._send(500, {"error": f"reset failed: {e}", "deleted": deleted})
+            return
+
+        self._send(200, {"deleted": deleted, "day": day})
+
     def do_OPTIONS(self):
         self.send_response(200)
         origin = self.headers.get("Origin", "")
