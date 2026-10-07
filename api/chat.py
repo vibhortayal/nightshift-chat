@@ -17,7 +17,7 @@ except ImportError:
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # Bump on every deploy so we can tell which version is live
-CHAT_VERSION = "2026-10-07-6"
+CHAT_VERSION = "2026-10-07-7"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
@@ -466,7 +466,7 @@ def has_negation(norm_q):
 
 def faq_fuzzy_match(norm_q):
     """Score each FAQ alias separately with full-string ratio.
-    Requires >=85 AND a 10+ point gap to the runner-up.
+    Requires >=75 AND a 5+ point gap to the runner-up.
     Skips short queries (<3 words) and negation — those go to the LLM."""
     words = norm_q.split()
     if len(words) < 3 or has_negation(norm_q):
@@ -477,10 +477,10 @@ def faq_fuzzy_match(norm_q):
             s = fuzz.ratio(norm_q, alias)
             scored.append((s, answer, alias))
     scored.sort(reverse=True)
-    if not scored or scored[0][0] < 85:
+    if not scored or scored[0][0] < 75:
         return None
     # Require a clear winner — no autoanswer on ambiguous matches
-    if len(scored) > 1 and scored[0][0] - scored[1][0] < 10:
+    if len(scored) > 1 and scored[0][0] - scored[1][0] < 5:
         return None
     return scored[0][1]
 
@@ -598,8 +598,8 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             norm_q = normalize(question)
-            # v8 prefix: eligibility alias
-            cache_key = "chat:ans:v8:" + hashlib.md5(norm_q.encode()).hexdigest()
+            # v9 prefix: looser fuzzy matching
+            cache_key = "chat:ans:v9:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
