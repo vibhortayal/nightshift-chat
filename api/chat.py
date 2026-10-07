@@ -108,6 +108,10 @@ FAQS = [
      "The submitted run used ~141M tokens (~$59 at list price), covered by a Claude Max subscription — no per-run bill.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"human message", "the human message", "one message"},
      "One human message starts a run — you describe what you want built, and the three seats (Architect, Implementer, Verifier) handle every stage after that with no further input.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
+    ({"how many stages", "stages complete", "stages did the factory"},
+     "The factory completed 4 of 4 stages to build the Pocketful app in 2 hours and 27 minutes.\nMore: https://vibhortayal.github.io/nightshift/"),
+    ({"how does the architect", "architect decide", "architect plan"},
+     "The Architect reads the spec, turns it into an acceptance checklist, and hands out the work to the other seats. It never writes app code or overrules the Verifier.\nMore: https://vibhortayal.github.io/nightshift/"),
     # --- Background knowledge (static, zero LLM cost) ---
     ({"what is a vm", "whats a vm", "virtual machine"},
      "A VM (virtual machine) is the virtualization or emulation of a computer system, providing the functionality of a physical computer. Teams rent VMs in the cloud instead of buying hardware.\nSource: https://en.wikipedia.org/wiki/Virtual_machine"),
