@@ -119,6 +119,39 @@ Same as the demo page: https://vibhortayal.github.io/nightshift/ — that's wher
 
 ---
 
+## Hackathon
+
+**How do I submit, and where?**
+Nightshift's entry is at https://lablab.ai/ai-hackathons/wearedevelopers-hackathon/nightshift/dark-factory-built-by-nightshift
+Organizers require a public GitHub repo (stage folders, seat mandates, factory description, BAND room export) plus a video with a room recording.
+
+**Who can enter? Is it online?**
+Fully online and open to everyone. The hackathon ran September 26 to October 5, 2026.
+Details: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon
+
+**What does each stage build?**
+| Stage | What it adds |
+|---|---|
+| 1 | The service and its API: wallets, payments by handle, payment requests, bill splits, activity feed, settlements |
+| 2 | The browser app (balance and pay, activity, requests, splits), plus holds with partial captures |
+| 3 | Payment corrections, views of the past, stable statements |
+| 4 | Refunds and batch corrections by an operator |
+Each stage is verified before the next begins. Source: https://github.com/vibhortayal/nightshift-pocketful
+
+**Can stages run all at once or one at a time?**
+Organizers allow either — per-stage or all at once. See the participant guide: https://github.com/band-ai/dark-factory-wearedevs/blob/main/docs/participant-guide.md
+Nightshift ran its four stages one at a time.
+
+**How much human input does the factory need?**
+The task dispatched per stage is the only human input — no steering, approvals, or reruns during a run.
+Nightshift's submitted run had exactly 1 human message (the initial dispatch).
+
+**What license does the project use?**
+The organizers require a public repo judges can clone; no specific license is named.
+The Nightshift repo currently has no license file: https://github.com/vibhortayal/nightshift-pocketful
+
+---
+
 ## Catch-all
 
 For technical terms not listed here, the bot replies:
