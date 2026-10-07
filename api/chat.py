@@ -86,7 +86,7 @@ TOPIC_KEYWORDS = {
     "mandates", "harness", "stage", "stages", "build", "built",
     "code", "coding", "team", "runs", "test", "tests", "spec", "room",
     "tablekeeper", "toy", "docker", "review", "reviewer", "dispatch", "opus",
-    "sonnet", "commandment",
+    "sonnet", "commandment", "demo", "deployed", "deploy", "app", "live",
 } | BACKGROUND_KEYWORDS
 # Note: "vibhor" intentionally excluded — personal questions about Vibhor
 # (e.g. "what is vibhor's weakness") are out of scope and get the generic reply.
@@ -114,6 +114,8 @@ FAQS = [
      "The Architect reads the spec, turns it into an acceptance checklist, and hands out the work to the other seats. It never writes app code or overrules the Verifier.\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"docker", "does the factory use docker", "docker for builds"},
      "Yes. The factory host runs Docker, and each stage delivers a complete buildable service with its own Dockerfile and RUN.md. The hackathon organizers require it too — judges build your Dockerfile and talk to the container over HTTP.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
+    ({"where is the demo", "demo app deployed", "where is pocketful deployed", "live demo"},
+     "The Pocketful demo is live at https://pocketful.duckdns.org/\nMore: https://vibhortayal.github.io/nightshift/"),
     # --- Background knowledge (static, zero LLM cost) ---
     ({"what is a vm", "whats a vm", "virtual machine"},
      "A VM (virtual machine) is the virtualization or emulation of a computer system, providing the functionality of a physical computer. Teams rent VMs in the cloud instead of buying hardware.\nSource: https://en.wikipedia.org/wiki/Virtual_machine"),
