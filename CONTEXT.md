@@ -3,7 +3,7 @@
 ## What it is
 Dark Factory by Team Nightshift: a three-seat AI software factory on the Band platform (band.ai).
 One human message starts a run; the agent seats then handle every stage among themselves with no further human input.
-Built for the WeAreDevelopers x BAND hackathon (Sep 26 – Oct 5, 2026). Team: Vibhor Tayal (human), plus AI agents Spark, Instinct, and Claude.
+Built for the WeAreDevelopers x BAND hackathon (Sep 26 – Oct 5, 2026). Team: Vibhor Tayal (product owner), Spark (program manager), Instinct (QA and release manager), Claude (platform engineer).
 
 ## The submitted run
 Run 7, Oct 2 2026: built **Pocketful** (a kids' savings/pocket-money app) through **4 of 4 stages** in **2 h 27 min**,

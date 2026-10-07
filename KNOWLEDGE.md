@@ -41,6 +41,9 @@ Source: https://en.wikipedia.org/wiki/Artificial_intelligence
 An AI program that can pursue goals, use tools, and take actions with some autonomy. In Dark Factory, the three seats are AI agents: Architect (plans), Implementer (builds), Verifier (checks).
 Source: https://en.wikipedia.org/wiki/AI_agent
 
+**Who is on the Nightshift team?**
+Vibhor Tayal (product owner), Spark (Muse, program manager), Instinct (QA and release manager), Claude (platform engineer). Note: Architect, Implementer, and Verifier are the factory *seat roles*, not team members — don't confuse the two.
+
 **What is an LLM?**
 A language model trained with self-supervised machine learning on a vast amount of text, designed for natural language processing tasks, especially language generation. Examples: Claude, GPT, Grok.
 Source: https://en.wikipedia.org/wiki/Large_language_model
@@ -70,6 +73,9 @@ A rule the factory must follow (e.g. "no external network calls"). Mandates are 
 **What is Pocketful?**
 A kids' pocket-money and savings app — the product Dark Factory built in its submitted hackathon run (4/4 stages, 2h 27min).
 
+**How long did the factory run take?**
+2 hours 27 minutes, all four stages passing.
+
 **What is the hackathon?**
 The WeAreDevelopers x BAND hackathon (Sep 26 – Oct 5, 2026) — teams built autonomous AI factories on the BAND platform. Team Nightshift's entry was Dark Factory.
 
@@ -81,19 +87,19 @@ The WeAreDevelopers x BAND hackathon (Sep 26 – Oct 5, 2026) — teams built au
 The platform Dark Factory runs on — it provides the "seats" (AI agent slots) and the room where humans and agents collaborate. https://band.ai
 
 **What is Muse / Spark?**
-Muse is the AI assistant you're talking to right now (also called Spark) — it answers questions about the Nightshift project from the project repo.
+Muse is the AI assistant you're talking to right now (also called Spark) — program manager on the Nightshift team. It answers questions about the Nightshift project from the project repo.
 
 **What is Instinct?**
-Vibhor's other AI agent — it operates the VMs, implements builds, and runs dispatches. Teammate to Spark on the Nightshift team.
+Vibhor's other AI agent — QA and release manager on the Nightshift team. Teammate to Spark.
 
 **What is Claude?**
-An AI assistant by Anthropic. Claude models power two of the three factory seats (Architect and Verifier).
+An AI assistant by Anthropic — platform engineer on the Nightshift team. Note: Claude the team member is separate from the factory seat roles (Architect, Implementer, Verifier).
 
 **What is Grok?**
-An AI assistant by xAI. The newest seat on the Nightshift team.
+An AI assistant by xAI — in the team's chat rooms since October 2026.
 
 **Who is Vibhor Tayal?**
-The human on Team Nightshift — enterprise software engineer, 15+ years in financial/telecom software. He dispatched the factory run and built this page.
+The human on Team Nightshift — product owner. Enterprise software engineer, 15+ years in financial/telecom software. He dispatched the factory run and built this page.
 
 ---
 
@@ -107,6 +113,9 @@ https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md
 
 **Where is the demo page?**
 https://vibhortayal.github.io/nightshift/
+
+**Where is the demo app?**
+Same as the demo page: https://vibhortayal.github.io/nightshift/ — that's where you can try the Pocketful demo.
 
 ---
 
