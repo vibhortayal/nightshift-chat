@@ -24,6 +24,10 @@ The event rules allow per-stage dispatch (one message per stage) or all-at-once;
 The task dispatched per stage is the only human input — no steering, approvals, or reruns during a run.
 Nightshift's submitted run had exactly 1 human message (the initial dispatch). No seat asks the human anything.
 
+## Infrastructure
+Factory host runs Docker; each stage has its own Dockerfile and RUN.md.
+Graded run used in-memory state (no persistent database) — data does not persist across restarts.
+
 ## The three seats
 - **Architect** (claude-opus-5-5): reads the spec, writes the acceptance checklist, hands out work, accepts each stage, writes the final report. Never writes app code or overrules the Verifier.
 - **Implementer** (claude-sonnet-5-5): builds each stage, writes its own tests, fixes findings. Never accepts its own work.
