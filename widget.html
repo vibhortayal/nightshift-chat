@@ -74,15 +74,41 @@ body{background:#020716;margin:0}
     msgs.appendChild(d); msgs.scrollTop=msgs.scrollHeight; return d;
   }
   function linkify(el, text){
-    // Linkify http(s) URLs safely: text nodes + anchor elements, never innerHTML
+    // Linkify only allowlisted project hosts; unknown http(s) stay plain text
+    var ALLOW_HOSTS={
+      "github.com":1,"www.github.com":1,
+      "github.io":1,"vibhortayal.github.io":1,
+      "band.ai":1,"www.band.ai":1,
+      "lablab.ai":1,"www.lablab.ai":1,
+      "pocketful.duckdns.org":1,
+      "anthropic.com":1,"www.anthropic.com":1,
+      "x.ai":1,"www.x.ai":1,
+      "en.wikipedia.org":1
+    };
+    function hostAllowed(url){
+      try{
+        var u=new URL(url);
+        if(u.protocol!=="http:"&&u.protocol!=="https:") return false;
+        var h=u.hostname.toLowerCase();
+        if(ALLOW_HOSTS[h]) return true;
+        // allow *.github.io project pages
+        if(h.endsWith(".github.io")) return true;
+        return false;
+      }catch(e){ return false; }
+    }
     var urlRe=/(https?:\/\/[^\s)]+)/g, last=0, m, found=false;
     while((m=urlRe.exec(text))!==null){
       found=true;
       if(m.index>last) el.appendChild(document.createTextNode(text.slice(last,m.index)));
-      var a=document.createElement('a');
-      a.href=m[1]; a.textContent=m[1]; a.target='_blank'; a.rel='noopener';
-      a.style.color='var(--sodium)'; a.style.wordBreak='break-all';
-      el.appendChild(a); last=m.index+m[1].length;
+      if(hostAllowed(m[1])){
+        var a=document.createElement('a');
+        a.href=m[1]; a.textContent=m[1]; a.target='_blank'; a.rel='noopener';
+        a.style.color='var(--sodium)'; a.style.wordBreak='break-all';
+        el.appendChild(a);
+      } else {
+        el.appendChild(document.createTextNode(m[1]));
+      }
+      last=m.index+m[1].length;
     }
     if(last<text.length) el.appendChild(document.createTextNode(text.slice(last)));
     if(!found) el.textContent=text;
