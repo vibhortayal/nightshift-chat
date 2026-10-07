@@ -17,7 +17,7 @@ except ImportError:
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # Bump on every deploy so we can tell which version is live
-CHAT_VERSION = "2026-10-07-14"
+CHAT_VERSION = "2026-10-07-15"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
@@ -66,6 +66,7 @@ FACTS = """Dark Factory by Team Nightshift: three-seat AI software factory on Ba
 Seats: Architect (claude-opus-5-5, plans/accepts), Implementer (claude-sonnet-5-5, builds), Verifier (claude-opus-5-5, checks).
 One human message starts a run; no seat asks the human anything.
 Submitted run (Run 7, Oct 2 2026): built Pocketful (wallet/payments, Track 2), 4/4 stages, 2h27m, 4 BLOCKs, ~$59 (Claude Max).
+Factory host runs Docker; each stage has its own Dockerfile and RUN.md. Graded run used in-memory state (no persistent database).
 Team: Vibhor Tayal + AI agents Spark, Instinct, Claude. Hackathon: WeAreDevelopers x BAND.
 Repo: github.com/vibhortayal/nightshift-pocketful — Page: vibhortayal.github.io/nightshift/"""
 
@@ -233,6 +234,8 @@ FAQS = [
     ({"human input rule", "what human input is allowed", "can human intervene", "human input per stage",
       "do humans help each stage", "human involvement", "how much human help"},
      "The task dispatched per stage is the only human input allowed — no steering, approvals, or reruns during a run.\nGuide: https://github.com/band-ai/dark-factory-wearedevs/blob/main/docs/participant-guide.md"),
+    ({"since nightshift used a database", "what database", "did you use a database", "database used"},
+     "Correction: Nightshift did NOT use a persistent database. The graded run used in-memory state — data does not persist across restarts.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"license", "what license", "is it open source", "what license does the project use", "license of the repo"},
      "The organizers require a public repo judges can clone; no specific license is named. The Nightshift repo currently has no license file.\nRepo: https://github.com/vibhortayal/nightshift-pocketful"),
     ({"who is vibhor", "who is vibhor tayal"},
@@ -580,9 +583,8 @@ def fuzzy_gate_match(word, keywords, min_score=85):
 
 
 def check_faq(norm_q):
-    # Negation guard: questions with negation (not, n't, never, no) skip FAQ
-    # matching entirely — they go to the LLM for proper handling.
-    # Prevents "does the factory not use docker" matching the docker FAQ.
+    # Negation guard: questions with negation skip FAQ matching,
+    # go to LLM which has the facts in context.
     if has_negation(norm_q):
         return None
     # R1 fix (-12): phrasing-agnostic stage-feature pre-match — any stage(s) +
@@ -704,7 +706,7 @@ class handler(BaseHTTPRequestHandler):
             norm_q = normalize(question)
             # v15 prefix: -13 — fixed human-run answer (R3) + models FAQ (no model
             # comparison; seats' models listed); cache v15
-            cache_key = "chat:ans:v16:" + hashlib.md5(norm_q.encode()).hexdigest()
+            cache_key = "chat:ans:v17:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
