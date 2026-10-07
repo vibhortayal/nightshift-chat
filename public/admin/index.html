@@ -31,6 +31,9 @@
 </div>
 <div id="error"></div>
 <div id="summary"></div>
+<div id="actions" style="display:none; margin: 1rem 0;">
+  <button onclick="clearLogs()" style="background: #a54a4a;">Clear all logs</button>
+</div>
 <table id="tbl" style="display:none">
   <thead><tr><th>Time (PT)</th><th>Question</th><th>Answer</th><th>Tier</th><th>IP</th><th>Cached</th></tr></thead>
   <tbody id="rows"></tbody>
@@ -58,8 +61,26 @@ async function load() {
       tb.appendChild(tr);
     });
     document.getElementById('tbl').style.display = '';
+    document.getElementById('actions').style.display = '';
   } catch (e) {
     err.textContent = 'Failed to load: ' + e.message;
+  }
+}
+async function clearLogs() {
+  if (!confirm('Delete ALL question logs? This cannot be undone.')) return;
+  const pw = document.getElementById('pw').value;
+  const err = document.getElementById('error');
+  try {
+    const r = await fetch('/api/admin/questions', {
+      method: 'DELETE',
+      headers: {'X-Admin-Password': pw}
+    });
+    const d = await r.json();
+    if (r.status === 401) { err.textContent = 'Wrong password.'; return; }
+    err.textContent = 'Deleted ' + d.deleted + ' logs.';
+    load();
+  } catch (e) {
+    err.textContent = 'Failed to clear: ' + e.message;
   }
 }
 document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') load(); });
