@@ -86,7 +86,7 @@ TOPIC_KEYWORDS = {
     "mandates", "harness", "stage", "stages", "build", "built",
     "code", "coding", "team", "runs", "test", "tests", "spec", "room",
     "tablekeeper", "toy", "docker", "review", "reviewer", "dispatch", "opus",
-    "sonnet", "commandment", "demo", "deployed", "deploy", "app", "live",
+    "sonnet", "commandment", "demo", "deployed", "deploy", "app", "live", "video", "presentation",
 } | BACKGROUND_KEYWORDS
 # Note: "vibhor" intentionally excluded — personal questions about Vibhor
 # (e.g. "what is vibhor's weakness") are out of scope and get the generic reply.
@@ -99,7 +99,7 @@ FAQS = [
     ({"what is the nightshift factory", "what is nightshift", "what is dark factory",
       "what is darkfactory", "whats darkfactory", "what is a darkfactory"},
      "Dark Factory is a three-seat AI software factory on the Band platform: Architect (plans), Implementer (builds), Verifier (checks). One human message starts a run; the seats handle everything after.\nMore: https://github.com/vibhortayal/nightshift-pocketful"),
-    ({"who built", "who made", "who created"},
+    ({"who built", "who made", "who created", "who made the video"},
      "Team Nightshift: Vibhor Tayal (human) plus AI agents Spark, Instinct, and Claude — built for the WeAreDevelopers x BAND hackathon.\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"what is pocketful", "whats pocketful"},
      "Pocketful — a kids' pocket-money/savings app, built through 4 of 4 stages in 2h 27min (Run 7, Oct 2 2026).\nMore: https://github.com/vibhortayal/nightshift-pocketful"),
@@ -109,7 +109,7 @@ FAQS = [
      "The submitted run used ~141M tokens (~$59 at list price), covered by a Claude Max subscription — no per-run bill.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"human message", "the human message", "one message"},
      "One human message starts a run — you describe what you want built, and the three seats (Architect, Implementer, Verifier) handle every stage after that with no further input.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
-    ({"how many stages", "stages complete", "stages did the factory", "how long did the run take", "how long did pocketful take"},
+    ({"how many stages", "stages complete", "stages did the factory", "how long did the run take", "how long did pocketful take", "how long did it take"},
      "The factory completed 4 of 4 stages to build the Pocketful app in 2 hours and 27 minutes.\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"how does the architect", "architect decide", "architect plan"},
      "The Architect reads the spec, turns it into an acceptance checklist, and hands out the work to the other seats. It never writes app code or overrules the Verifier.\nMore: https://vibhortayal.github.io/nightshift/"),
