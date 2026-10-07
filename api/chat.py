@@ -42,6 +42,14 @@ DISABLED = os.environ.get("CHAT_DISABLED", "") == "1"
 KV_URL = os.environ.get("KV_REST_API_URL", "")
 KV_TOKEN = os.environ.get("KV_REST_API_TOKEN", "")
 
+# Staging namespace: prepended to every KV key. Default "" keeps prod
+# behavior byte-identical; the staging project sets KV_PREFIX=stg:.
+KV_PREFIX = os.environ.get("KV_PREFIX", "")
+
+
+def _k(name):
+    return KV_PREFIX + name
+
 # Limits
 DAILY_CAP = 500          # max LLM calls per day globally (resets midnight Pacific)
 IP_DAILY_CAP = 40        # max LLM calls per IP per day
@@ -369,7 +377,7 @@ def kv_healthy():
 def check_rate_limit(ip):
     """Sliding window: max RATE_PER_MIN requests per IP per minute."""
     minute = int(time.time() // 60)
-    key = f"chat:rl:{ip}:{minute}"
+    key = _k(f"chat:rl:{ip}:{minute}")
     count = kv_call("INCR", key)
     if count is None:
         return False  # KV down — allow, don't block
@@ -385,7 +393,7 @@ def pacific_day():
 
 def check_daily_cap():
     """Global daily LLM call cap, resets midnight Pacific."""
-    key = f"chat:daily:{pacific_day()}"
+    key = _k(f"chat:daily:{pacific_day()}")
     count = kv_call("INCR", key)
     if count is None:
         return False  # KV down — allow
@@ -396,7 +404,7 @@ def check_daily_cap():
 def check_ip_daily_cap(ip):
     """Per-IP daily LLM call cap — one visitor can't burn the global cap."""
     iphash = hashlib.md5(ip.encode()).hexdigest()[:12]
-    key = f"chat:ipdaily:{iphash}:{pacific_day()}"
+    key = _k(f"chat:ipdaily:{iphash}:{pacific_day()}")
     count = kv_call("INCR", key)
     if count is None:
         return False
@@ -407,7 +415,7 @@ def check_ip_daily_cap(ip):
 def check_strikes(ip):
     """Five-strike rule for off-topic/injection questions. Returns (strikes, blocked)."""
     iphash = hashlib.md5(ip.encode()).hexdigest()[:12]
-    key = f"chat:strikes:{iphash}"
+    key = _k(f"chat:strikes:{iphash}")
     count = kv_call("INCR", key)
     if count is None:
         return 0, False
@@ -448,7 +456,7 @@ def log_question(question, tier, cached, answer="", ip="?"):
     # Hash IP for abuse-pattern detection without storing PII
     ip_hash = hashlib.md5(ip.encode()).hexdigest()[:8] if ip != "?" else "?"
     ts = int(time.time())
-    key = f"chat:log:{ts}:{hashlib.md5(q.encode()).hexdigest()[:8]}"
+    key = _k(f"chat:log:{ts}:{hashlib.md5(q.encode()).hexdigest()[:8]}")
     val = json.dumps({"q": q, "a": a, "tier": tier, "cached": cached, "ts": ts, "ip": ip_hash})
     kv_call("SET", key, val, "EX", LOG_TTL)
 
@@ -708,7 +716,7 @@ class handler(BaseHTTPRequestHandler):
             # personal Vibhor questions get the generic reply again); N1/S6
             # fixes from -15/-16 retained (CONTEXT.md Infrastructure section,
             # database premise-correction FAQ); cache v18
-            cache_key = "chat:ans:v18:" + hashlib.md5(norm_q.encode()).hexdigest()
+            cache_key = _k("chat:ans:v18:" + hashlib.md5(norm_q.encode()).hexdigest())
 
             # 1. Persistent cache
             cached = cache_get(cache_key)

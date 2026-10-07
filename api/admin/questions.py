@@ -16,6 +16,14 @@ ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
 # Admin origin for CORS — same Vercel deployment serves the admin UI
 ADMIN_ORIGIN = "https://nightshift-chat-vibhor-t.vercel.app"
 
+# Staging namespace: prepended to every KV key and SCAN match pattern.
+# Default "" keeps prod behavior byte-identical; staging sets KV_PREFIX=stg:.
+KV_PREFIX = os.environ.get("KV_PREFIX", "")
+
+
+def _k(name):
+    return KV_PREFIX + name
+
 
 def kv_call(*args):
     if not KV_URL or not KV_TOKEN:
@@ -53,7 +61,7 @@ class handler(BaseHTTPRequestHandler):
         # Rate limit failed attempts: 10 per minute per IP
         ip = self.headers.get("X-Forwarded-For", "unknown").split(",")[0].strip()
         iphash = hashlib.md5(ip.encode()).hexdigest()[:12]
-        fail_key = f"chat:adminfail:{iphash}"
+        fail_key = _k(f"chat:adminfail:{iphash}")
         fails = kv_call("GET", fail_key)
         if fails and int(fails) >= 10:
             return False
@@ -79,7 +87,7 @@ class handler(BaseHTTPRequestHandler):
         cursor = 0
         try:
             while True:
-                result = kv_call("SCAN", cursor, "MATCH", "chat:log:*", "COUNT", 100)
+                result = kv_call("SCAN", cursor, "MATCH", _k("chat:log:*"), "COUNT", 100)
                 if not result:
                     break
                 cursor = int(result[0])
@@ -109,7 +117,7 @@ class handler(BaseHTTPRequestHandler):
         cursor = 0
         try:
             while True:
-                result = kv_call("SCAN", cursor, "MATCH", "chat:daily:*", "COUNT", 100)
+                result = kv_call("SCAN", cursor, "MATCH", _k("chat:daily:*"), "COUNT", 100)
                 if not result:
                     break
                 cursor = int(result[0])
@@ -120,7 +128,7 @@ class handler(BaseHTTPRequestHandler):
                     break
             cursor = 0
             while True:
-                result = kv_call("SCAN", cursor, "MATCH", "chat:ipdaily:*", "COUNT", 100)
+                result = kv_call("SCAN", cursor, "MATCH", _k("chat:ipdaily:*"), "COUNT", 100)
                 if not result:
                     break
                 cursor = int(result[0])
@@ -150,7 +158,7 @@ class handler(BaseHTTPRequestHandler):
             if target_ip:
                 import hashlib
                 iphash = hashlib.md5(target_ip.encode()).hexdigest()[:12]
-                key = f"chat:strikes:{iphash}"
+                key = _k(f"chat:strikes:{iphash}")
                 result = kv_call("DEL", key)
                 deleted = result if result else 0
                 self._send(200, {"deleted": deleted, "ip": target_ip})
@@ -158,7 +166,7 @@ class handler(BaseHTTPRequestHandler):
 
             cursor = 0
             while True:
-                result = kv_call("SCAN", cursor, "MATCH", "chat:strikes:*", "COUNT", 100)
+                result = kv_call("SCAN", cursor, "MATCH", _k("chat:strikes:*"), "COUNT", 100)
                 if not result:
                     break
                 cursor = int(result[0])
@@ -192,7 +200,7 @@ class handler(BaseHTTPRequestHandler):
         scan_errors = 0
         try:
             while True:
-                result = kv_call("SCAN", cursor, "MATCH", "chat:log:*", "COUNT", 200)
+                result = kv_call("SCAN", cursor, "MATCH", _k("chat:log:*"), "COUNT", 200)
                 if not result:
                     scan_errors += 1
                     if scan_errors >= 3:
