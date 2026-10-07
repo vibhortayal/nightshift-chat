@@ -17,7 +17,7 @@ except ImportError:
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # Bump on every deploy so we can tell which version is live
-CHAT_VERSION = "2026-10-07-1"
+CHAT_VERSION = "2026-10-07-2"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
@@ -114,8 +114,8 @@ FAQS = [
      "The submitted run used ~141M tokens (~$59 at list price), covered by a Claude Max subscription — no per-run bill.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"human message", "the human message", "one message"},
      "One human message starts a run — you describe what you want built, and the three seats (Architect, Implementer, Verifier) handle every stage after that with no further input.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
-    ({"how many stages", "stages complete", "stages did the factory", "how long did the run take", "how long did pocketful take", "how long did it take", "how much did the run cost", "run cost"},
-     "The factory completed 4 of 4 stages in 2 hours and 27 minutes, using ~141M tokens (~$59 at list price, covered by a Claude Max subscription).\nMore: https://vibhortayal.github.io/nightshift/"),
+    ({"how many stages", "stages complete", "stages did the factory", "how long did the run take", "how long did pocketful take", "how long did it take", "how much did the run cost", "run cost", "how long and how much", "duration and cost", "time and cost"},
+     "The factory completed 4 of 4 stages in 2 hours and 27 minutes, using ~141M tokens (~$59 at list price, covered by a Claude Max subscription — no per-run bill).\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"how does the architect", "architect decide", "architect plan"},
      "The Architect reads the spec, turns it into an acceptance checklist, and hands out the work to the other seats. It never writes app code or overrules the Verifier.\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"docker", "does the factory use docker", "docker for builds"},
@@ -155,10 +155,10 @@ FAQS = [
     ({"license", "what license", "is it open source"},
      "Check the repo for license details: https://github.com/vibhortayal/nightshift-pocketful"),
     ({"is $59 an actual bill", "$59 actual bill", "estimated model cost", "is 59 dollars real", "actual cost vs estimated"},
-     "The $59 is a list-price estimate for ~141M tokens — not an actual bill. The run was covered by a Claude Max subscription, so there was no per-run charge.\nMore: https://vibhortayal.github.io/nightshift/"),
+     "The $59 is a list-price estimate for ~141M tokens — not an actual bill. The 2h 27min run was covered by a Claude Max subscription, so there was no per-run charge.\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"where is the full chat log", "chat log of the submitted run", "room log", "where is room.json"},
      "The room log is at https://github.com/vibhortayal/nightshift-pocketful/blob/main/room.json"),
-    ({"features by stage", "what was built in each stage", "stage features"},
+    ({"features by stage", "what was built in each stage", "stage features", "what features were built in each stage", "features each stage"},
      "Each stage added to the previous: stage 1 core API, stage 2 web UI, stage 3 concurrency controls, stage 4 domain extensions. Details: https://github.com/vibhortayal/nightshift-pocketful"),
     ({"real money", "real-money deposits", "demo wallets reset", "seeded wallets"},
      "No real money — demo wallets are seeded and reset hourly.\nTry it: https://pocketful.duckdns.org/"),
@@ -582,8 +582,8 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             norm_q = normalize(question)
-            # v3 prefix: invalidates pre-FAQ-expansion cached answers
-            cache_key = "chat:ans:v3:" + hashlib.md5(norm_q.encode()).hexdigest()
+            # v4 prefix: invalidates cost-only cached answers
+            cache_key = "chat:ans:v4:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
