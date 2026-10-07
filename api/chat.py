@@ -94,7 +94,8 @@ TOPIC_KEYWORDS = {
 
 OFFTOPIC_REPLY = ("I only answer questions about Team Nightshift, the Dark Factory, and the hackathon. "
                   "Try asking about how the factory works, the seats, or the build. "
-                  "You can also find answers in the repo: https://github.com/vibhortayal/nightshift-pocketful")
+                  "Repo: https://github.com/vibhortayal/nightshift-pocketful "
+                  "Submission: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon/nightshift/dark-factory-built-by-nightshift")
 
 FAQS = [
     ({"what is the nightshift factory", "what is nightshift", "what is dark factory",
@@ -548,7 +549,7 @@ class handler(BaseHTTPRequestHandler):
             if is_injection(norm_q):
                 strikes, blocked = check_strikes(ip)
                 if blocked:
-                    reply = "Sorry, I can't help you. You can find answers in the repo: https://github.com/vibhortayal/nightshift-pocketful"
+                    reply = "Sorry, I can't help you. Repo: https://github.com/vibhortayal/nightshift-pocketful Submission: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon/nightshift/dark-factory-built-by-nightshift"
                 elif strikes >= 2:
                     remaining = 5 - strikes
                     reply = f"I can't help with that. Warning {strikes} of 5: {remaining} more and I won't be able to help further."
@@ -567,7 +568,7 @@ class handler(BaseHTTPRequestHandler):
             if not (exact or fuzzy):
                 strikes, blocked = check_strikes(ip)
                 if blocked:
-                    reply = "Sorry, I can't help you. You can find answers in the repo: https://github.com/vibhortayal/nightshift-pocketful"
+                    reply = "Sorry, I can't help you. Repo: https://github.com/vibhortayal/nightshift-pocketful Submission: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon/nightshift/dark-factory-built-by-nightshift"
                 elif strikes >= 2:
                     remaining = 5 - strikes
                     reply = OFFTOPIC_REPLY + f"\n\nWarning {strikes} of 5: please stick to questions about the project. {remaining} more off-topic question{'s' if remaining > 1 else ''} and I won't be able to help further."
