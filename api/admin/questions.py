@@ -3,8 +3,8 @@ Password-protected via ADMIN_PASSWORD env var, passed as X-Admin-Password header
 """
 import json
 import os
-import time
 import urllib.request
+from http.server import BaseHTTPRequestHandler
 
 KV_URL = os.environ.get("KV_REST_API_URL", "")
 KV_TOKEN = os.environ.get("KV_REST_API_TOKEN", "")
@@ -27,24 +27,33 @@ def kv_call(*args):
         return None
 
 
-class handler:
-    def GET(self, request):
-        return self._handle(request)
+class handler(BaseHTTPRequestHandler):
+    def _send(self, code, data):
+        self.send_response(code)
+        self.send_header("Content-Type", "application/json")
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.end_headers()
+        self.wfile.write(json.dumps(data).encode())
 
-    def POST(self, request):
-        return self._handle(request)
+    def do_GET(self):
+        self._handle()
 
-    def _handle(self, request):
-        # Auth check
-        password = request.headers.get("x-admin-password", "")
+    def do_POST(self):
+        self._handle()
+
+    def do_OPTIONS(self):
+        self.send_response(200)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "X-Admin-Password, Content-Type")
+        self.end_headers()
+
+    def _handle(self):
+        password = self.headers.get("X-Admin-Password", "")
         if not ADMIN_PASSWORD or password != ADMIN_PASSWORD:
-            return {
-                "statusCode": 401,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps({"error": "unauthorized"}),
-            }
+            self._send(401, {"error": "unauthorized"})
+            return
 
-        # Scan for log keys (KV SCAN)
         keys = []
         cursor = 0
         try:
@@ -57,13 +66,9 @@ class handler:
                 if cursor == 0 or len(keys) >= 500:
                     break
         except Exception as e:
-            return {
-                "statusCode": 500,
-                "headers": {"Content-Type": "application/json"},
-                "body": json.dumps({"error": f"scan failed: {e}"}),
-            }
+            self._send(500, {"error": f"scan failed: {e}"})
+            return
 
-        # Fetch values (most recent first by key timestamp)
         keys.sort(reverse=True)
         keys = keys[:200]
         logs = []
@@ -75,8 +80,4 @@ class handler:
                 except Exception:
                     pass
 
-        return {
-            "statusCode": 200,
-            "headers": {"Content-Type": "application/json"},
-            "body": json.dumps({"count": len(logs), "logs": logs}),
-        }
+        self._send(200, {"count": len(logs), "logs": logs})
