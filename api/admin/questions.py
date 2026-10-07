@@ -118,7 +118,7 @@ class handler(BaseHTTPRequestHandler):
                     break
                 cursor = int(result[0])
                 keys.extend(result[1])
-                if cursor == 0 or len(keys) >= 500:
+                if cursor == 0:
                     break
         except Exception as e:
             self._send(500, {"error": f"scan failed: {e}"})

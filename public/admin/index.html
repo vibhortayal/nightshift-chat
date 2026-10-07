@@ -28,6 +28,7 @@
 <div id="login">
   <input type="password" id="pw" placeholder="Admin password" autocomplete="off">
   <button onclick="load()">View logs</button>
+  <label style="margin-left:1rem"><input type="checkbox" id="auto" checked> Auto-refresh (30s)</label>
 </div>
 <div id="error"></div>
 <div id="summary"></div>
@@ -98,6 +99,7 @@ async function clearLogs() {
   }
 }
 document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') load(); });
-</script>
+    setInterval(() => { if (document.getElementById('auto').checked && document.getElementById('pw').value) load(); }, 30000);
+  </script>
 </body>
 </html>
