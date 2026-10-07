@@ -30,6 +30,8 @@
   <button onclick="load()">View logs</button>
 <button onclick="resetCaps()" style="margin-left:0.5rem">Reset daily caps</button>
 <button onclick="clearStrikes()" style="margin-left:0.5rem">Clear all strikes</button>
+<input type="text" id="strikeIp" placeholder="IP to clear" style="margin-left:0.5rem;width:120px">
+<button onclick="clearStrikesIp()">Clear IP strikes</button>
   <label style="margin-left:1rem"><input type="checkbox" id="auto" checked> Auto-refresh (30s)</label>
 </div>
 <div id="error"></div>
@@ -111,6 +113,14 @@ document.getElementById('pw').addEventListener('keydown', e => { if (e.key === '
       const r = await fetch('/api/admin/questions', { method: 'POST', headers: { 'X-Admin-Password': document.getElementById('pw').value } });
       const j = await r.json();
       alert('Reset: ' + JSON.stringify(j));
+    }
+    async function clearStrikesIp() {
+      const ip = document.getElementById('strikeIp').value.trim();
+      if (!ip) { alert('Enter an IP'); return; }
+      if (!confirm('Clear strikes for ' + ip + '?')) return;
+      const r = await fetch('/api/admin/questions?ip=' + encodeURIComponent(ip), { method: 'PUT', headers: { 'X-Admin-Password': document.getElementById('pw').value } });
+      const j = await r.json();
+      alert('Cleared: ' + JSON.stringify(j));
     }
     async function clearStrikes() {
       if (!confirm('Clear ALL strike counters for all users? One-time.')) return;

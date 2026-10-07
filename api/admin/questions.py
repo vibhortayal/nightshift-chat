@@ -136,14 +136,27 @@ class handler(BaseHTTPRequestHandler):
         self._send(200, {"deleted": deleted, "day": day})
 
     def do_PUT(self):
-        """Clear all strike counters. Password-protected. One-time use."""
+        """Clear strike counters. ?ip=1.2.3.4 for single IP, otherwise all. Password-protected."""
         if not self._check_auth():
             self._send(401, {"error": "unauthorized"})
             return
 
+        from urllib.parse import urlparse, parse_qs
+        qs = parse_qs(urlparse(self.path).query)
+        target_ip = qs.get("ip", [None])[0]
+
         deleted = 0
-        cursor = 0
         try:
+            if target_ip:
+                import hashlib
+                iphash = hashlib.md5(target_ip.encode()).hexdigest()[:12]
+                key = f"chat:strikes:{iphash}"
+                result = kv_call("DEL", key)
+                deleted = result if result else 0
+                self._send(200, {"deleted": deleted, "ip": target_ip})
+                return
+
+            cursor = 0
             while True:
                 result = kv_call("SCAN", cursor, "MATCH", "chat:strikes:*", "COUNT", 100)
                 if not result:
