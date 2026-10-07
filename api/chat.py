@@ -112,6 +112,8 @@ FAQS = [
      "The factory completed 4 of 4 stages to build the Pocketful app in 2 hours and 27 minutes.\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"how does the architect", "architect decide", "architect plan"},
      "The Architect reads the spec, turns it into an acceptance checklist, and hands out the work to the other seats. It never writes app code or overrules the Verifier.\nMore: https://vibhortayal.github.io/nightshift/"),
+    ({"docker", "does the factory use docker", "docker for builds"},
+     "Yes — the factory host runs Docker, and each stage delivers a complete buildable service with its own Dockerfile and RUN.md.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     # --- Background knowledge (static, zero LLM cost) ---
     ({"what is a vm", "whats a vm", "virtual machine"},
      "A VM (virtual machine) is the virtualization or emulation of a computer system, providing the functionality of a physical computer. Teams rent VMs in the cloud instead of buying hardware.\nSource: https://en.wikipedia.org/wiki/Virtual_machine"),
