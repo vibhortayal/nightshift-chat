@@ -17,7 +17,7 @@ except ImportError:
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # Bump on every deploy so we can tell which version is live
-CHAT_VERSION = "2026-10-07-16"
+CHAT_VERSION = "2026-10-07-17"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
@@ -93,7 +93,7 @@ TOPIC_KEYWORDS = {
     "source", "language", "python", "timeline", "win", "won", "winner", "place", "result", "results",
     "cost", "bill", "price", "estimate", "estimated", "token", "tokens", "59", "dollar", "log", "room.json",
     "feature", "features", "money", "wallet", "deposit", "persistence", "setup", "local",
-    "vibhor", "verification", "tech", "stack", "model", "models", "documentation", "docs",
+    "verification", "tech", "stack", "model", "models", "documentation", "docs",
     "free", "when", "started", "start", "development", "wrong", "fail", "failed", "opponent",
     "teammate", "agent", "agents",
     "submit", "submission", "enroll", "enrollment",
@@ -704,9 +704,11 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             norm_q = normalize(question)
-            # v15 prefix: -13 — fixed human-run answer (R3) + models FAQ (no model
-            # comparison; seats' models listed); cache v15
-            cache_key = "chat:ans:v17:" + hashlib.md5(norm_q.encode()).hexdigest()
+            # v18 prefix: -17 — vibhor removed from topic gate (restore 8a12d38;
+            # personal Vibhor questions get the generic reply again); N1/S6
+            # fixes from -15/-16 retained (CONTEXT.md Infrastructure section,
+            # database premise-correction FAQ); cache v18
+            cache_key = "chat:ans:v18:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
