@@ -237,6 +237,17 @@ def check_ip_daily_cap(ip):
     return count > IP_DAILY_CAP
 
 
+def check_strikes(ip):
+    """Three-strike rule for off-topic questions. Returns (strikes, blocked)."""
+    iphash = hashlib.md5(ip.encode()).hexdigest()[:12]
+    key = f"chat:strikes:{iphash}"
+    count = kv_call("INCR", key)
+    if count is None:
+        return 0, False
+    kv_call("EXPIRE", key, 86400)  # reset daily
+    return count, count >= 3
+
+
 def scrub_pii(text):
     """Remove emails, phones, URLs, domains, and names."""
     text = re.sub(r"[\w.+-]+@[\w-]+\.[\w.]+", "[email]", text)
@@ -514,8 +525,15 @@ class handler(BaseHTTPRequestHandler):
             exact = bool(words & TOPIC_KEYWORDS or any(k in joined for k in TOPIC_KEYWORDS))
             fuzzy = any(fuzzy_gate_match(w, TOPIC_KEYWORDS) for w in words)
             if not (exact or fuzzy):
-                log_question(question, "offtopic", True, OFFTOPIC_REPLY, ip=ip)
-                self._send(200, {"answer": OFFTOPIC_REPLY})
+                strikes, blocked = check_strikes(ip)
+                if blocked:
+                    reply = "Sorry, I can't help you."
+                elif strikes == 2:
+                    reply = OFFTOPIC_REPLY + "\n\nThis is your second off-topic question. One more and I won't be able to help further."
+                else:
+                    reply = OFFTOPIC_REPLY
+                log_question(question, "offtopic", True, reply, ip=ip)
+                self._send(200, {"answer": reply})
                 return
 
             # 4. Daily caps — per-IP first, global only if per-IP passes
