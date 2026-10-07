@@ -32,7 +32,7 @@
 <div id="error"></div>
 <div id="summary"></div>
 <table id="tbl" style="display:none">
-  <thead><tr><th>Time (UTC)</th><th>Question</th><th>Answer</th><th>Tier</th><th>IP</th><th>Cached</th></tr></thead>
+  <thead><tr><th>Time (PT)</th><th>Question</th><th>Answer</th><th>Tier</th><th>IP</th><th>Cached</th></tr></thead>
   <tbody id="rows"></tbody>
 </table>
 <script>
@@ -51,7 +51,7 @@ async function load() {
     tb.innerHTML = '';
     d.logs.forEach(l => {
       const tr = document.createElement('tr');
-      const dt = new Date(l.ts * 1000).toISOString().slice(0, 19).replace('T', ' ');
+      const dt = new Date(l.ts * 1000).toLocaleString('en-US', {timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false});
       tr.innerHTML = '<td>' + dt + '</td><td></td><td></td><td><span class="tier tier-' + l.tier + '">' + l.tier + '</span></td><td><code>' + (l.ip || '?') + '</code></td><td>' + (l.cached ? 'yes' : 'no') + '</td>';
       tr.children[1].textContent = l.q;
       tr.children[2].textContent = (l.a || '').slice(0, 200);
