@@ -72,15 +72,22 @@ SIMPLE_KEYWORDS = {
     "built", "made", "created", "team", "pocketful",
 }
 
-TOPIC_KEYWORDS = {
-    "nightshift", "factory", "factories", "hackathon", "band", "pocketful",
-    "architect", "implementer", "verifier", "seat", "seats", "agent", "agents",
-    "claude", "spark", "instinct", "dark", "wearedevelopers", "lablab",
-    "mandate", "mandates", "harness", "stage", "stages", "build", "built",
-    "code", "coding", "team", "run", "runs", "test", "tests", "spec", "room",
-    "tablekeeper", "toy", "docker", "review", "reviewer", "dispatch", "opus",
-    "sonnet", "commandment", "block",
+# Background knowledge terms — answered from the static glossary, never reach the LLM
+BACKGROUND_KEYWORDS = {
+    "vm", "server", "cloud", "github", "repo", "repository", "api",
+    "ai", "agent", "llm", "prompt", "seat", "seats", "run", "block",
+    "mandate", "band", "muse", "spark", "instinct", "claude", "grok",
 }
+
+TOPIC_KEYWORDS = {
+    "nightshift", "factory", "factories", "hackathon", "pocketful",
+    "architect", "implementer", "verifier",
+    "dark", "wearedevelopers", "lablab",
+    "mandates", "harness", "stage", "stages", "build", "built",
+    "code", "coding", "team", "runs", "test", "tests", "spec", "room",
+    "tablekeeper", "toy", "docker", "review", "reviewer", "dispatch", "opus",
+    "sonnet", "commandment",
+} | BACKGROUND_KEYWORDS
 # Note: "vibhor" intentionally excluded — personal questions about Vibhor
 # (e.g. "what is vibhor's weakness") are out of scope and get the generic reply.
 
@@ -99,6 +106,45 @@ FAQS = [
      "Architect turns the spec into a checklist; Implementer builds one exact version; Verifier tests it independently and gives one PASS/BLOCK verdict. Five BLOCKs stops the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"how much did it cost", "what did it cost", "run cost"},
      "The submitted run used ~141M tokens (~$59 at list price), covered by a Claude Max subscription — no per-run bill.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
+    # --- Background knowledge (static, zero LLM cost) ---
+    ({"what is a vm", "whats a vm", "virtual machine"},
+     "A VM (virtual machine) is a computer simulated in software, running on a bigger physical computer. Teams rent VMs in the cloud instead of buying hardware."),
+    ({"what is a server"},
+     "A server is a computer that runs continuously and serves things — websites, apps, data — to other computers over the internet."),
+    ({"what is the cloud", "whats the cloud"},
+     "The cloud means renting computers and storage over the internet instead of owning them."),
+    ({"what is github", "whats github"},
+     "GitHub is a website where developers store and share code — think Google Docs for software projects."),
+    ({"what is a repo", "whats a repo", "what is repository"},
+     "A repo (repository) is a project's folder on GitHub with all its code, docs, and history."),
+    ({"what is an api", "whats an api"},
+     "An API is a defined way for two programs to talk to each other — like a menu: you send a request, the server returns data."),
+    ({"what is ai", "whats ai"},
+     "AI is software that can understand language, recognize patterns, and make decisions — instead of only following fixed instructions."),
+    ({"what is an ai agent", "whats an ai agent"},
+     "An AI agent is an AI program that works autonomously: it takes a goal, makes a plan, uses tools, and completes multi-step tasks without a human guiding each step."),
+    ({"what is an llm", "whats an llm"},
+     "An LLM (Large Language Model) is the engine behind AI assistants — trained on vast text, it generates human-like language. Examples: Claude, GPT, Grok."),
+    ({"what is a prompt", "whats a prompt"},
+     "A prompt is the instruction or question you type to an AI. Better prompts get better answers."),
+    ({"what is a seat", "whats a seat", "what are seats"},
+     "A seat is one AI role in the factory: Architect (plans), Implementer (builds), Verifier (checks)."),
+    ({"what is a run", "whats a run"},
+     "A run is one complete factory execution: a single human message starts it, the three seats work through every stage, and a finished app comes out."),
+    ({"what is a block", "whats a block"},
+     "A BLOCK is a Verifier verdict meaning a stage failed its checks — fix it and retry. Five BLOCKs stops the run."),
+    ({"what is a mandate", "whats a mandate"},
+     "A mandate is a rule the factory must follow (e.g. no external network calls), checked at every stage."),
+    ({"what is band", "whats band"},
+     "BAND is the platform Dark Factory runs on — it provides the AI seats and the room where humans and agents collaborate.\nMore: https://band.ai"),
+    ({"what is muse", "whats muse", "what is spark", "whats spark", "who are you"},
+     "Muse (also called Spark) is the AI assistant you're talking to right now — it answers questions about the Nightshift project from the project repo."),
+    ({"what is instinct", "whats instinct"},
+     "Instinct is Vibhor's other AI agent — it operates the VMs, implements builds, and runs dispatches. Teammate to Spark on the Nightshift team."),
+    ({"what is claude", "whats claude"},
+     "Claude is an AI assistant by Anthropic. Claude models power two of the three factory seats (Architect and Verifier).\nMore: https://anthropic.com"),
+    ({"what is grok", "whats grok"},
+     "Grok is an AI assistant by xAI — the newest seat on the Nightshift team.\nMore: https://x.ai"),
 ]
 
 # In-memory fallback (used if KV is unreachable)
