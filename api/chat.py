@@ -656,8 +656,17 @@ class handler(BaseHTTPRequestHandler):
                 self._send(503, {"error": "The assistant is temporarily unavailable — try again in a moment."})
                 return
 
-            api_key = os.environ.get("GEMINI_API_KEY", "")
-            if not api_key:
+            # Multi-key fallback: GEMINI_API_KEY, GEMINI_API_KEY_2, etc.
+            api_keys = [os.environ.get("GEMINI_API_KEY", "")]
+            i = 2
+            while True:
+                k = os.environ.get(f"GEMINI_API_KEY_{i}", "")
+                if not k:
+                    break
+                api_keys.append(k)
+                i += 1
+            api_keys = [k for k in api_keys if k]
+            if not api_keys:
                 self._send(500, {"error": "Something went wrong on our end. Try again in a moment."})
                 return
 
@@ -665,7 +674,18 @@ class handler(BaseHTTPRequestHandler):
             context = FACTS if simple else get_context()
             tier = "facts" if simple else "full"
 
-            answer = call_gemini(question, context, api_key)
+            answer = None
+            for api_key in api_keys:
+                try:
+                    answer = call_gemini(question, context, api_key)
+                    break
+                except urllib.error.HTTPError as e:
+                    if e.code == 429:
+                        continue  # try next key
+                    raise
+            if answer is None:
+                self._send(503, {"error": "The assistant is busy right now — try again in a minute."})
+                return
             cache_put(cache_key, answer, LLM_CACHE_TTL)
             log_question(question, tier, False, answer, ip=ip)
             self._send(200, {"answer": answer})
