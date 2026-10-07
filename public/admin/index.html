@@ -60,7 +60,12 @@ async function load() {
       // Build all cells with textContent to prevent XSS
       const tdDt = document.createElement('td'); tdDt.textContent = dt;
       const tdQ = document.createElement('td'); tdQ.textContent = l.q;
-      const tdA = document.createElement('td'); tdA.textContent = (l.a || '').slice(0, 200);
+      const tdA = document.createElement('td');
+      const fullA = l.a || '';
+      tdA.textContent = fullA.length > 200 ? fullA.slice(0, 200) + '...' : fullA;
+      tdA.title = fullA;
+      tdA.style.cursor = fullA.length > 200 ? 'pointer' : 'default';
+      if (fullA.length > 200) tdA.onclick = () => alert(fullA);
       const tdTier = document.createElement('td');
       const tierSpan = document.createElement('span');
       // Allowlist tier values to prevent class injection
