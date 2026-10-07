@@ -9,6 +9,7 @@ What it covers (zero LLM calls, zero production impact):
     the Docker fact the LLM tier will see
   - S6 probe: database-premise question returns the premise-correction FAQ
   - FAQ self-consistency: every alias resolves to its own set's answer
+  - Widget chip questions: each fires the FAQ tier with a full https link
   - Topic gate spot checks (benign allowed, off-topic blocked)
   - Injection detection + off-topic reply copy
   - Version header + cache-namespace v-prefix correctness
@@ -51,11 +52,11 @@ def gate_allows(q):
 
 
 # 0. Version + cache namespace -------------------------------------------
-check("version header is 2026-10-07-17",
-      chat.CHAT_VERSION == "2026-10-07-17", chat.CHAT_VERSION)
+check("version header is 2026-10-07-18",
+      chat.CHAT_VERSION == "2026-10-07-18", chat.CHAT_VERSION)
 src = open(os.path.join(HERE, "api", "chat.py")).read()
-check("cache namespace is chat:ans:v18:",
-      '"chat:ans:v18:"' in src)
+check("cache namespace is chat:ans:v19:",
+      '"chat:ans:v19:"' in src)
 
 # 1. N1 probe: "does the factory not use docker for builds" --------------
 n1 = "does the factory not use docker for builds"
@@ -123,6 +124,20 @@ check("FAQ aliases self-consistent (modulo known warts)", not drift,
 check("known warts documented", len(KNOWN_WARTS) == 13,
       f"{len(KNOWN_WARTS)} wart entries")
 
+# 3b. Widget chip questions — must answer from the FAQ tier ----------------
+# Chips are zero-API-cost; each must hit check_faq, carry a full https
+# link, and not be a refusal.
+CHIP_QUESTIONS = ["What is Nightshift?", "How did the factory build it?",
+                  "Who is on the team?"]
+for chip in CHIP_QUESTIONS:
+    ca = chat.check_faq(chat.normalize(chip))
+    check(f"chip FAQ fires ({chip})", ca is not None)
+    check(f"chip answer has full https link ({chip})",
+          ca is not None and "https://" in ca)
+    check(f"chip answer is not a refusal ({chip})",
+          ca is not None and "Sorry, I can't help you" not in ca
+          and "I can't help with that" not in ca)
+
 # 4. Topic gate spot checks -----------------------------------------------
 # Known hole (pre-existing): the substring gate matches "api" inside
 # "capital", so "what is the capital of france" reaches the LLM tier, which
@@ -175,8 +190,8 @@ def fake_kv(*args):
 
 chat.kv_call = fake_kv
 chat._mem_cache.clear()
-chat.cache_put("chat:ans:v18:fixture", "hello", ttl=60)
-check("mock-KV cache round trip", chat.cache_get("chat:ans:v18:fixture") == "hello")
+chat.cache_put("chat:ans:v19:fixture", "hello", ttl=60)
+check("mock-KV cache round trip", chat.cache_get("chat:ans:v19:fixture") == "hello")
 check("mock-KV healthy (PING->PONG)", chat.kv_healthy())
 chat.kv_call = orig_kv
 
