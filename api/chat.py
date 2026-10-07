@@ -17,7 +17,7 @@ except ImportError:
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # Bump on every deploy so we can tell which version is live
-CHAT_VERSION = "2026-10-07-8"
+CHAT_VERSION = "2026-10-07-9"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
@@ -65,7 +65,7 @@ SECURITY RULES (never break these):
 FACTS = """Dark Factory by Team Nightshift: three-seat AI software factory on Band (band.ai).
 Seats: Architect (claude-opus-5-5, plans/accepts), Implementer (claude-sonnet-5-5, builds), Verifier (claude-opus-5-5, checks).
 One human message starts a run; no seat asks the human anything.
-Submitted run (Run 7, Oct 2 2026): built Pocketful (kids' savings app), 4/4 stages, 2h27m, 4 BLOCKs, ~$59 (Claude Max).
+Submitted run (Run 7, Oct 2 2026): built Pocketful (wallet/payments, Track 2), 4/4 stages, 2h27m, 4 BLOCKs, ~$59 (Claude Max).
 Team: Vibhor Tayal + AI agents Spark, Instinct, Claude. Hackathon: WeAreDevelopers x BAND.
 Repo: github.com/vibhortayal/nightshift-pocketful — Page: vibhortayal.github.io/nightshift/"""
 
@@ -111,7 +111,7 @@ FAQS = [
     ({"who built", "who made", "who created", "who made the video"},
      "Team Nightshift: Vibhor (Product owner), Spark (Program manager), Instinct (QA and release manager), Claude (Platform engineer). Factory seats: Architect, Implementer, Verifier.\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"what is pocketful", "whats pocketful"},
-     "Pocketful — a wallet and payments service (kids' pocket-money/savings app), built through 4 of 4 stages in 2h 27min (Run 7, Oct 2 2026).\nMore: https://github.com/vibhortayal/nightshift-pocketful"),
+     "Pocketful — a wallet and payments service (Track 2, like Venmo), built through 4 of 4 stages in 2h 27min (Run 7, Oct 2 2026).\nMore: https://github.com/vibhortayal/nightshift-pocketful"),
     ({"how does it work", "how it works", "how do the seats work"},
      "Architect turns the spec into a checklist; Implementer builds one exact version; Verifier tests it independently and gives one PASS/BLOCK verdict. Five BLOCKs stops the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"how much did it cost", "what did it cost", "run cost"},
@@ -126,8 +126,8 @@ FAQS = [
      "Yes. The factory host runs Docker, and each stage delivers a complete buildable service with its own Dockerfile and RUN.md. The hackathon organizers require it too — judges build your Dockerfile and talk to the container over HTTP.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"where is the demo", "demo app deployed", "where is pocketful deployed", "live demo"},
      "The Pocketful demo is live at https://pocketful.duckdns.org/\nMore: https://vibhortayal.github.io/nightshift/"),
-    ({"did the hackathon require no human", "factory work without human help", "no human help"},
-     "Our run used a single human message to start — the seats then handled all 4 stages autonomously. (The event allows per-stage dispatch; we chose single-message.)\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
+        ({"did the hackathon require no human", "factory work without human help", "no human help", "autonomy", "single message vs per-stage"},
+     "Our submitted run used one human message to start all 4 stages. The event rules allow per-stage dispatch (a message per stage); we chose single-message for full autonomy.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"how are entries judged", "how are hackathon entries judged", "judging criteria"},
      "Judging: Factory 50%, App 25%, Agent Teamwork 25%. Details: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon"),
     ({"hackathon tracks", "what were the tracks", "tracks and prizes", "prize amounts", "how much prize"},
@@ -139,7 +139,7 @@ FAQS = [
     ({"how was the app checked", "app checked before submission", "how was it tested"},
      "The Verifier wrote black-box tests from the spec before seeing any code, ran supplied and own checks, and issued PASS/BLOCK per version. Five BLOCKs stops the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"what did you submit", "what was submitted"},
-     "Team Nightshift submitted Dark Factory: a three-seat AI factory that built Pocketful (kids' savings app) through 4 stages in 2h 27min.\nSubmission: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon/nightshift/dark-factory-built-by-nightshift"),
+     "Team Nightshift submitted Dark Factory: a three-seat AI factory that built Pocketful (wallet/payments, Track 2) through 4 stages in 2h 27min.\nSubmission: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon/nightshift/dark-factory-built-by-nightshift"),
     ({"who was on team nightshift", "what did each member do", "team members and roles"},
      "Vibhor (Product owner, human), Spark (Program manager), Instinct (QA and release manager), Claude (Platform engineer) — all AI agents except Vibhor. Factory seats: Architect (plans), Implementer (builds), Verifier (checks).\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"what are the three seats", "three seats are"},
@@ -149,7 +149,7 @@ FAQS = [
     ({"did it win", "did you win", "what place", "did team nightshift win", "win or place"},
      "Judging was still in progress as of October 7, 2026. Check the official leaderboard: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon"),
     ({"how are bugs handled", "bug handling", "what happens when something fails", "how do you handle failures"},
-     "When the Verifier BLOCKs a version: the Implementer does a root-cause fix, retests with regression checks, and resubmits for acceptance. Five BLOCKs stops the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
+     "When the Verifier BLOCKs a version: the Implementer does a root-cause fix. The Verifier independently retests (never trusting the Implementer\u0027s report). The Architect only accepts on a valid PASS. Five BLOCKs stops the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"minimum eligibility", "minimum to qualify", "minimum requirement", "what is required to enter", "how many stages needed to be eligible", "stages needed for eligibility", "eligible stages", "how many completed stages were needed", "completed stages needed"},
      "Minimum to be eligible: a complete stage 1. We completed 4 of 4 stages.\nDetails: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon"),
     ({"limitations", "what are the limitations", "what can't it do"},
@@ -175,8 +175,8 @@ FAQS = [
     ({"where is the full chat log", "chat log of the submitted run", "room log", "where is room.json"},
      "The room log is at https://github.com/vibhortayal/nightshift-pocketful/blob/main/room.json"),
     ({"features by stage", "what was built in each stage", "stage features", "what features were built in each stage", "features each stage"},
-     "Each stage added to the previous: stage 1 core API, stage 2 web UI, stage 3 concurrency controls, stage 4 domain extensions. Details: https://github.com/vibhortayal/nightshift-pocketful"),
-    ({"real money", "real-money deposits", "demo wallets reset", "seeded wallets"},
+     "Stage 1: wallet, payments, requests, splits. Stage 2: browser UI + holds. Stage 3: corrections, history, statements. Stage 4: refunds, batch, corrections. Details: https://github.com/vibhortayal/nightshift-pocketful"),
+    ({"real money", "real-money deposits", "demo wallets reset", "seeded wallets", "can i top up", "top up demo"},
      "No real money — demo wallets are seeded and reset hourly.\nTry it: https://pocketful.duckdns.org/"),
     ({"in-memory state", "restart persistence", "does it save data", "persistence limitations", "will my data survive a restart", "data survive restart"},
      "The graded run used in-memory state — data does not persist across restarts.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
@@ -598,8 +598,8 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             norm_q = normalize(question)
-            # v10 prefix: fix duplicate cost FAQ
-            cache_key = "chat:ans:v10:" + hashlib.md5(norm_q.encode()).hexdigest()
+            # v11 prefix: Instinct source corrections
+            cache_key = "chat:ans:v11:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
