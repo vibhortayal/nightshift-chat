@@ -17,7 +17,7 @@ except ImportError:
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # Bump on every deploy so we can tell which version is live
-CHAT_VERSION = "2026-10-07-5"
+CHAT_VERSION = "2026-10-07-6"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
@@ -150,7 +150,7 @@ FAQS = [
      "Judging was still in progress as of October 7, 2026. Check the official leaderboard: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon"),
     ({"how are bugs handled", "bug handling", "what happens when something fails", "how do you handle failures"},
      "When the Verifier BLOCKs a version: the Implementer does a root-cause fix, retests with regression checks, and resubmits for acceptance. Five BLOCKs stops the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
-    ({"minimum eligibility", "minimum to qualify", "minimum requirement", "what is required to enter", "how many stages needed to be eligible", "stages needed for eligibility", "eligible stages"},
+    ({"minimum eligibility", "minimum to qualify", "minimum requirement", "what is required to enter", "how many stages needed to be eligible", "stages needed for eligibility", "eligible stages", "how many completed stages were needed", "completed stages needed"},
      "Minimum to be eligible: a complete stage 1. We completed 4 of 4 stages.\nDetails: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon"),
     ({"limitations", "what are the limitations", "what can't it do"},
      "Spec-bound testing (only what the spec defines), in-memory state (no persistent DB in the graded run), and tested resource limits.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
@@ -598,8 +598,8 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             norm_q = normalize(question)
-            # v7 prefix: fix duration wording
-            cache_key = "chat:ans:v7:" + hashlib.md5(norm_q.encode()).hexdigest()
+            # v8 prefix: eligibility alias
+            cache_key = "chat:ans:v8:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
