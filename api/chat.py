@@ -89,6 +89,8 @@ TOPIC_KEYWORDS = {
     "tablekeeper", "toy", "docker", "review", "reviewer", "dispatch", "opus",
     "sonnet", "commandment", "demo", "deployed", "deploy", "app", "live", "video", "presentation",
     "source", "language", "python", "timeline", "win", "won", "winner", "place", "result", "results",
+    "cost", "bill", "price", "estimate", "estimated", "token", "tokens", "59", "dollar", "log", "room.json",
+    "feature", "features", "money", "wallet", "deposit", "persistence", "setup", "local",
 } | BACKGROUND_KEYWORDS
 # Note: "vibhor" intentionally excluded — personal questions about Vibhor
 # (e.g. "what is vibhor's weakness") are out of scope and get the generic reply.
@@ -152,6 +154,18 @@ FAQS = [
      "One public GitHub repo with stage folders, seat mandates, factory description, and room log export. Online format via lablab.ai.\nDetails: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon"),
     ({"license", "what license", "is it open source"},
      "Check the repo for license details: https://github.com/vibhortayal/nightshift-pocketful"),
+    ({"is $59 an actual bill", "$59 actual bill", "estimated model cost", "is 59 dollars real", "actual cost vs estimated"},
+     "The $59 is a list-price estimate for ~141M tokens — not an actual bill. The run was covered by a Claude Max subscription, so there was no per-run charge.\nMore: https://vibhortayal.github.io/nightshift/"),
+    ({"where is the full chat log", "chat log of the submitted run", "room log", "where is room.json"},
+     "The room log is at https://github.com/vibhortayal/nightshift-pocketful/blob/main/room.json"),
+    ({"features by stage", "what was built in each stage", "stage features"},
+     "Each stage added to the previous: stage 1 core API, stage 2 web UI, stage 3 concurrency controls, stage 4 domain extensions. Details: https://github.com/vibhortayal/nightshift-pocketful"),
+    ({"real money", "real-money deposits", "demo wallets reset", "seeded wallets"},
+     "No real money — demo wallets are seeded and reset hourly.\nTry it: https://pocketful.duckdns.org/"),
+    ({"in-memory state", "restart persistence", "does it save data", "persistence limitations"},
+     "The graded run used in-memory state — data does not persist across restarts.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
+    ({"local docker setup", "run with docker locally", "docker setup"},
+     "Each stage has its own Dockerfile. Clone the repo and build: https://github.com/vibhortayal/nightshift-pocketful"),
     ({"can i see the source", "where is the source", "show me the source", "source code"},
      "The full source is at https://github.com/vibhortayal/nightshift-pocketful"),
     ({"what language", "language is it written", "what language is pocketful"},
