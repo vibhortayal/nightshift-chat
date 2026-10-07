@@ -17,7 +17,7 @@ except ImportError:
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # Bump on every deploy so we can tell which version is live
-CHAT_VERSION = "2026-10-07-2"
+CHAT_VERSION = "2026-10-07-3"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
@@ -582,8 +582,8 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             norm_q = normalize(question)
-            # v4 prefix: invalidates cost-only cached answers
-            cache_key = "chat:ans:v4:" + hashlib.md5(norm_q.encode()).hexdigest()
+            # v5 prefix: force refresh after FAQ text updates
+            cache_key = "chat:ans:v5:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
