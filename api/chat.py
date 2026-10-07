@@ -17,7 +17,7 @@ except ImportError:
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # Bump on every deploy so we can tell which version is live
-CHAT_VERSION = "2026-10-07-7"
+CHAT_VERSION = "2026-10-07-8"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
@@ -115,7 +115,7 @@ FAQS = [
     ({"how does it work", "how it works", "how do the seats work"},
      "Architect turns the spec into a checklist; Implementer builds one exact version; Verifier tests it independently and gives one PASS/BLOCK verdict. Five BLOCKs stops the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"how much did it cost", "what did it cost", "run cost"},
-     "The submitted run used ~141M tokens (~$59 at list price), covered by a Claude Max subscription — no per-run bill.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
+     "2 hours and 27 minutes, ~141M tokens (~$59 at list price — not an actual bill, covered by Claude Max subscription).\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"human message", "the human message", "one message"},
      "One human message starts a run — you describe what you want built, and the three seats (Architect, Implementer, Verifier) handle every stage after that with no further input.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"how many stages", "stages complete", "stages did the factory", "how long did the run take", "how long did pocketful take", "how long did it take", "how much did the run cost", "run cost", "how long and how much", "duration and cost", "time and cost"},
@@ -178,9 +178,9 @@ FAQS = [
      "Each stage added to the previous: stage 1 core API, stage 2 web UI, stage 3 concurrency controls, stage 4 domain extensions. Details: https://github.com/vibhortayal/nightshift-pocketful"),
     ({"real money", "real-money deposits", "demo wallets reset", "seeded wallets"},
      "No real money — demo wallets are seeded and reset hourly.\nTry it: https://pocketful.duckdns.org/"),
-    ({"in-memory state", "restart persistence", "does it save data", "persistence limitations"},
+    ({"in-memory state", "restart persistence", "does it save data", "persistence limitations", "will my data survive a restart", "data survive restart"},
      "The graded run used in-memory state — data does not persist across restarts.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
-    ({"local docker setup", "run with docker locally", "docker setup"},
+    ({"local docker setup", "run with docker locally", "docker setup", "how can i run pocketful locally", "run pocketful locally"},
      "Each stage has its own Dockerfile. Clone the repo and build: https://github.com/vibhortayal/nightshift-pocketful"),
     ({"can i see the source", "where is the source", "show me the source", "source code"},
      "The full source is at https://github.com/vibhortayal/nightshift-pocketful"),
@@ -598,8 +598,8 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             norm_q = normalize(question)
-            # v9 prefix: looser fuzzy matching
-            cache_key = "chat:ans:v9:" + hashlib.md5(norm_q.encode()).hexdigest()
+            # v10 prefix: fix duplicate cost FAQ
+            cache_key = "chat:ans:v10:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
