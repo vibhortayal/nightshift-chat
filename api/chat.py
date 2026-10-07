@@ -183,7 +183,8 @@ FAQS = [
       "why did you pick pocketful instead of tablekeeper", "what made you pick pocketful instead of tablekeeper",
       "why pocketful over tablekeeper", "why not the tablekeeper track", "why choose pocketful over tablekeeper"},
      TRACK_CHOICE_ANSWER),
-    ({"how does it work", "how it works", "how do the seats work"},
+    ({"how does it work", "how it works", "how do the seats work",
+      "how did the factory build it", "how was it built"},
      "Architect turns the spec into a checklist; Implementer builds one exact version; Verifier tests it independently and gives one PASS/BLOCK verdict. Five BLOCKs stops the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"how much did it cost", "what did it cost", "run cost"},
      "2 hours and 27 minutes, ~141M tokens (~$59 at list price — not an actual bill, covered by Claude Max subscription).\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
@@ -213,7 +214,8 @@ FAQS = [
      "The Verifier wrote black-box tests from the spec before seeing any code, ran supplied and own checks, and issued PASS/BLOCK per version. Five BLOCKs stops the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"what did you submit", "what was submitted"},
      "Team Nightshift submitted Dark Factory: a three-seat AI factory that built Pocketful (wallet/payments, Track 2) through 4 stages in 2h 27min.\nSubmission: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon/nightshift/dark-factory-built-by-nightshift"),
-    ({"who was on team nightshift", "what did each member do", "team members and roles"},
+    ({"who was on team nightshift", "what did each member do", "team members and roles",
+      "who is on the team", "who are the team members"},
      "Vibhor (Product owner, human), Spark (Program manager), Instinct (QA and release manager), Claude (Platform engineer) — all AI agents except Vibhor. Factory seats: Architect (plans), Implementer (builds), Verifier (checks).\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"what are the three seats", "three seats are"},
      "Architect (plans and accepts), Implementer (builds), Verifier (tests independently). One human message starts the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
@@ -712,11 +714,11 @@ class handler(BaseHTTPRequestHandler):
                 return
 
             norm_q = normalize(question)
-            # v18 prefix: -17 — vibhor removed from topic gate (restore 8a12d38;
+            # v19 prefix: -17 — vibhor removed from topic gate (restore 8a12d38;
             # personal Vibhor questions get the generic reply again); N1/S6
             # fixes from -15/-16 retained (CONTEXT.md Infrastructure section,
-            # database premise-correction FAQ); cache v18
-            cache_key = _k("chat:ans:v18:" + hashlib.md5(norm_q.encode()).hexdigest())
+            # database premise-correction FAQ); cache v19
+            cache_key = _k("chat:ans:v19:" + hashlib.md5(norm_q.encode()).hexdigest())
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
