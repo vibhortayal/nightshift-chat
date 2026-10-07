@@ -8,13 +8,16 @@ Style: plain-English, one definition per term. Last updated 2026-10-06.
 ## Basic tech concepts
 
 **What is a VM?**
-A virtual machine — a computer simulated in software, running on a bigger physical computer. Teams rent VMs in the cloud instead of buying hardware.
+A virtual machine — the virtualization or emulation of a computer system, providing the functionality of a physical computer. Teams rent VMs in the cloud instead of buying hardware.
+Source: https://en.wikipedia.org/wiki/Virtual_machine
 
 **What is a server?**
 A computer that runs continuously and serves things (websites, apps, data) to other computers over the internet.
+Source: https://en.wikipedia.org/wiki/Server_(computing)
 
 **What is the cloud?**
 Renting computers and storage over the internet instead of owning them. When someone says "it's in the cloud," they mean it runs on rented servers.
+Source: https://en.wikipedia.org/wiki/Cloud_computing
 
 **What is GitHub?**
 A website where developers store and share code. Think of it as Google Docs for software projects.
@@ -24,6 +27,7 @@ Short for repository — a project's folder on GitHub containing all its code, d
 
 **What is an API?**
 A defined way for two programs to talk to each other. Like a menu: you order (send a request), the kitchen (server) returns a dish (data).
+Source: https://en.wikipedia.org/wiki/API
 
 ---
 
@@ -31,12 +35,15 @@ A defined way for two programs to talk to each other. Like a menu: you order (se
 
 **What is AI?**
 Software that can understand language, recognize patterns, and make decisions — instead of only following fixed instructions.
+Source: https://en.wikipedia.org/wiki/Artificial_intelligence
 
 **What is an AI agent?**
-An AI program that can work autonomously: it takes a goal, makes a plan, uses tools, and completes multi-step tasks without a human guiding each step.
+An AI program that can pursue goals, use software or other tools, and take actions with some level of autonomy.
+Source: https://en.wikipedia.org/wiki/AI_agent
 
 **What is an LLM?**
-Large Language Model — the engine behind AI assistants. Trained on vast text, it predicts and generates human-like language. Examples: Claude, GPT, Grok.
+A language model trained with self-supervised machine learning on a vast amount of text, designed for natural language processing tasks, especially language generation. Examples: Claude, GPT, Grok.
+Source: https://en.wikipedia.org/wiki/Large_language_model
 
 **What is a prompt?**
 The instruction or question you type to an AI. Better prompts → better answers.
