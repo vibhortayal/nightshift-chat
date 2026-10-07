@@ -251,13 +251,15 @@ def scrub_pii(text):
     return text[:200]
 
 
-def log_question(question, tier, cached, answer=""):
+def log_question(question, tier, cached, answer="", ip="?"):
     """Log to KV with TTL. All questions, not just LLM-bound ones."""
     q = scrub_pii(question)
     a = scrub_pii(answer)[:500]  # truncate long answers
+    # Hash IP for abuse-pattern detection without storing PII
+    ip_hash = hashlib.md5(ip.encode()).hexdigest()[:8] if ip != "?" else "?"
     ts = int(time.time())
     key = f"chat:log:{ts}:{hashlib.md5(q.encode()).hexdigest()[:8]}"
-    val = json.dumps({"q": q, "a": a, "tier": tier, "cached": cached, "ts": ts})
+    val = json.dumps({"q": q, "a": a, "tier": tier, "cached": cached, "ts": ts, "ip": ip_hash})
     kv_call("SET", key, val, "EX", LOG_TTL)
 
 
@@ -493,7 +495,7 @@ class handler(BaseHTTPRequestHandler):
             # 1. Persistent cache
             cached = cache_get(cache_key)
             if cached:
-                log_question(question, "cache", True, cached)
+                log_question(question, "cache", True, cached, ip=ip)
                 self._send(200, {"answer": cached, "cached": True})
                 return
 
@@ -501,7 +503,7 @@ class handler(BaseHTTPRequestHandler):
             faq = check_faq(norm_q)
             if faq:
                 cache_put(cache_key, faq)
-                log_question(question, "faq", True, faq)
+                log_question(question, "faq", True, faq, ip=ip)
                 self._send(200, {"answer": faq, "cached": True})
                 return
 
@@ -512,21 +514,21 @@ class handler(BaseHTTPRequestHandler):
             exact = bool(words & TOPIC_KEYWORDS or any(k in joined for k in TOPIC_KEYWORDS))
             fuzzy = any(fuzzy_gate_match(w, TOPIC_KEYWORDS) for w in words)
             if not (exact or fuzzy):
-                log_question(question, "offtopic", True, OFFTOPIC_REPLY)
+                log_question(question, "offtopic", True, OFFTOPIC_REPLY, ip=ip)
                 self._send(200, {"answer": OFFTOPIC_REPLY})
                 return
 
             # 4. Daily caps — per-IP first, global only if per-IP passes
             # (so one IP can't burn the 500/day global cap)
             if check_ip_daily_cap(ip):
-                log_question(question, "ip_capped", False, "daily limit reached")
+                log_question(question, "ip_capped", False, "daily limit reached", ip=ip)
                 self._send(503, {"answer": (
                     "You've hit the daily question limit — try again tomorrow. "
                     "The project repo has most answers: "
                     "https://github.com/vibhortayal/nightshift-pocketful")})
                 return
             if check_daily_cap():
-                log_question(question, "capped", False, "daily limit reached")
+                log_question(question, "capped", False, "daily limit reached", ip=ip)
                 self._send(503, {"answer": (
                     "The assistant has hit its daily limit — try again tomorrow. "
                     "Meanwhile, the project repo has most answers: "
@@ -550,7 +552,7 @@ class handler(BaseHTTPRequestHandler):
 
             answer = call_gemini(question, context, api_key)
             cache_put(cache_key, answer)
-            log_question(question, tier, False, answer)
+            log_question(question, tier, False, answer, ip=ip)
             self._send(200, {"answer": answer})
 
         except urllib.error.HTTPError as e:
