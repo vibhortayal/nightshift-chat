@@ -17,7 +17,7 @@ except ImportError:
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # Bump on every deploy so we can tell which version is live
-CHAT_VERSION = "2026-10-07-10"
+CHAT_VERSION = "2026-10-07-11"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
@@ -172,7 +172,8 @@ FAQS = [
      "Fully online and open to everyone. The hackathon ran September 26 to October 5, 2026.\nDetails: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon"),
     ({"dispatch per stage", "per-stage dispatch", "dispatch all at once", "how are stages dispatched"},
      "Organizers allow per-stage dispatch or all at once (see guide). Nightshift ran its four stages one at a time.\nGuide: https://github.com/band-ai/dark-factory-wearedevs/blob/main/docs/participant-guide.md"),
-    ({"human input rule", "what human input is allowed", "can human intervene"},
+    ({"human input rule", "what human input is allowed", "can human intervene", "human input per stage",
+      "do humans help each stage", "human involvement", "how much human help"},
      "The task dispatched per stage is the only human input allowed — no steering, approvals, or reruns during a run.\nGuide: https://github.com/band-ai/dark-factory-wearedevs/blob/main/docs/participant-guide.md"),
     ({"license", "what license", "is it open source", "what license does the project use", "license of the repo"},
      "The organizers require a public repo judges can clone; no specific license is named. The Nightshift repo currently has no license file.\nRepo: https://github.com/vibhortayal/nightshift-pocketful"),
@@ -193,7 +194,8 @@ FAQS = [
     ({"where is the full chat log", "chat log of the submitted run", "room log", "where is room.json"},
      "The room log is at https://github.com/vibhortayal/nightshift-pocketful/blob/main/room.json"),
     ({"features by stage", "what was built in each stage", "stage features", "what features were built in each stage", "features each stage",
-      "what did each stage build", "list the stage features", "per-stage features", "features per stage", "stage by stage features"},
+      "what did each stage build", "list the stage features", "per-stage features", "features per stage", "stage by stage features",
+      "what does each stage do", "stage breakdown", "stages overview", "what happens in each stage"},
      "Stage 1: wallet, payments, requests, splits. Stage 2: browser UI + holds. Stage 3: corrections, history, statements. Stage 4: refunds, batch, corrections. Details: https://github.com/vibhortayal/nightshift-pocketful"),
     ({"real money", "real-money deposits", "demo wallets reset", "seeded wallets", "can i top up", "top up demo",
       "demo deposit", "deposit money", "add money to the demo", "fund my demo wallet"},
@@ -626,7 +628,7 @@ class handler(BaseHTTPRequestHandler):
             norm_q = normalize(question)
             # v12 prefix: CONTEXT.md grounding refresh (per-stage features, dispatch, human input,
             # submit/eligibility/license facts, full-https links) + topic-gate keywords that missed -9
-            cache_key = "chat:ans:v12:" + hashlib.md5(norm_q.encode()).hexdigest()
+            cache_key = "chat:ans:v13:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
