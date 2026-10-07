@@ -45,7 +45,8 @@ async function load() {
   err.textContent = '';
   try {
     const r = await fetch('/api/admin/questions', {
-      headers: {'X-Admin-Password': pw}
+      headers: {'X-Admin-Password': pw},
+      cache: 'no-store'
     });
     if (r.status === 401) { err.textContent = 'Wrong password.'; return; }
     const d = await r.json();

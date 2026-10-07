@@ -37,6 +37,7 @@ class handler(BaseHTTPRequestHandler):
     def _send(self, code, data):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate")
         # Restrict CORS to the admin origin (same deployment serves the UI)
         origin = self.headers.get("Origin", "")
         if origin == ADMIN_ORIGIN:
