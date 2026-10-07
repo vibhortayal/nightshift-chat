@@ -87,6 +87,7 @@ TOPIC_KEYWORDS = {
     "code", "coding", "team", "runs", "test", "tests", "spec", "room",
     "tablekeeper", "toy", "docker", "review", "reviewer", "dispatch", "opus",
     "sonnet", "commandment", "demo", "deployed", "deploy", "app", "live", "video", "presentation",
+    "source", "language", "python", "timeline", "win", "won", "winner", "place", "result", "results",
 } | BACKGROUND_KEYWORDS
 # Note: "vibhor" intentionally excluded — personal questions about Vibhor
 # (e.g. "what is vibhor's weakness") are out of scope and get the generic reply.
@@ -117,6 +118,10 @@ FAQS = [
      "Yes. The factory host runs Docker, and each stage delivers a complete buildable service with its own Dockerfile and RUN.md. The hackathon organizers require it too — judges build your Dockerfile and talk to the container over HTTP.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
     ({"where is the demo", "demo app deployed", "where is pocketful deployed", "live demo"},
      "The Pocketful demo is live at https://pocketful.duckdns.org/\nMore: https://vibhortayal.github.io/nightshift/"),
+    ({"can i see the source", "where is the source", "show me the source", "source code"},
+     "The full source is at https://github.com/vibhortayal/nightshift-pocketful"),
+    ({"what language", "language is it written", "what language is pocketful"},
+     "Mostly Python, with some JavaScript for the web UI.\nMore: https://github.com/vibhortayal/nightshift-pocketful"),
     # --- Background knowledge (static, zero LLM cost) ---
     ({"what is a vm", "whats a vm", "virtual machine"},
      "A VM (virtual machine) is the virtualization or emulation of a computer system, providing the functionality of a physical computer. Teams rent VMs in the cloud instead of buying hardware.\nSource: https://en.wikipedia.org/wiki/Virtual_machine"),
