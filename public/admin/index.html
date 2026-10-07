@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nightshift Chat — Question Logs</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem; background: #0f0f1a; color: #e0e0e0; }
+  h1 { font-size: 1.4rem; }
+  #login { display: flex; gap: 0.5rem; margin: 1rem 0; }
+  input[type=password] { flex: 1; padding: 0.5rem; border-radius: 6px; border: 1px solid #444; background: #1a1a2e; color: #fff; }
+  button { padding: 0.5rem 1rem; border-radius: 6px; border: none; background: #4a6fa5; color: #fff; cursor: pointer; }
+  button:hover { background: #5a7fb5; }
+  #error { color: #ff6b6b; margin: 0.5rem 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 1rem; font-size: 0.85rem; }
+  th, td { text-align: left; padding: 0.5rem; border-bottom: 1px solid #333; }
+  th { color: #888; font-weight: 600; }
+  .tier { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 10px; font-size: 0.75rem; }
+  .tier-faq { background: #1a3a1a; color: #7f7; }
+  .tier-llm { background: #1a2a4a; color: #7af; }
+  .tier-offtopic { background: #3a2a1a; color: #fa7; }
+  .tier-cache { background: #2a2a3a; color: #aaf; }
+  #summary { color: #888; margin: 1rem 0; }
+</style>
+</head>
+<body>
+<h1>Nightshift Chat — Question Logs</h1>
+<div id="login">
+  <input type="password" id="pw" placeholder="Admin password" autocomplete="off">
+  <button onclick="load()">View logs</button>
+</div>
+<div id="error"></div>
+<div id="summary"></div>
+<table id="tbl" style="display:none">
+  <thead><tr><th>Time (UTC)</th><th>Question</th><th>Tier</th><th>Cached</th></tr></thead>
+  <tbody id="rows"></tbody>
+</table>
+<script>
+async function load() {
+  const pw = document.getElementById('pw').value;
+  const err = document.getElementById('error');
+  err.textContent = '';
+  try {
+    const r = await fetch('/api/admin/questions', {
+      headers: {'X-Admin-Password': pw}
+    });
+    if (r.status === 401) { err.textContent = 'Wrong password.'; return; }
+    const d = await r.json();
+    document.getElementById('summary').textContent = d.count + ' questions logged (last 30 days)';
+    const tb = document.getElementById('rows');
+    tb.innerHTML = '';
+    d.logs.forEach(l => {
+      const tr = document.createElement('tr');
+      const dt = new Date(l.ts * 1000).toISOString().slice(0, 19).replace('T', ' ');
+      tr.innerHTML = '<td>' + dt + '</td><td></td><td><span class="tier tier-' + l.tier + '">' + l.tier + '</span></td><td>' + (l.cached ? 'yes' : 'no') + '</td>';
+      tr.children[1].textContent = l.q;
+      tb.appendChild(tr);
+    });
+    document.getElementById('tbl').style.display = '';
+  } catch (e) {
+    err.textContent = 'Failed to load: ' + e.message;
+  }
+}
+document.getElementById('pw').addEventListener('keydown', e => { if (e.key === 'Enter') load(); });
+</script>
+</body>
+</html>
