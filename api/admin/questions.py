@@ -41,6 +41,33 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         self._handle()
 
+    def do_DELETE(self):
+        """Clear all question logs. Password-protected."""
+        password = self.headers.get("X-Admin-Password", "")
+        if not ADMIN_PASSWORD or password != ADMIN_PASSWORD:
+            self._send(401, {"error": "unauthorized"})
+            return
+
+        deleted = 0
+        cursor = 0
+        try:
+            while True:
+                result = kv_call("SCAN", cursor, "MATCH", "chat:log:*", "COUNT", 100)
+                if not result:
+                    break
+                cursor = int(result[0])
+                batch = result[1]
+                if batch:
+                    kv_call("DEL", *batch)
+                    deleted += len(batch)
+                if cursor == 0:
+                    break
+        except Exception as e:
+            self._send(500, {"error": f"delete failed: {e}", "deleted": deleted})
+            return
+
+        self._send(200, {"deleted": deleted})
+
     def do_OPTIONS(self):
         self.send_response(200)
         self.send_header("Access-Control-Allow-Origin", "*")
