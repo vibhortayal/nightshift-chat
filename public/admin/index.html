@@ -55,9 +55,22 @@ async function load() {
     d.logs.forEach(l => {
       const tr = document.createElement('tr');
       const dt = new Date(l.ts * 1000).toLocaleString('en-US', {timeZone: 'America/Los_Angeles', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false});
-      tr.innerHTML = '<td>' + dt + '</td><td></td><td></td><td><span class="tier tier-' + l.tier + '">' + l.tier + '</span></td><td><code>' + (l.ip || '?') + '</code></td><td>' + (l.cached ? 'yes' : 'no') + '</td>';
-      tr.children[1].textContent = l.q;
-      tr.children[2].textContent = (l.a || '').slice(0, 200);
+      // Build all cells with textContent to prevent XSS
+      const tdDt = document.createElement('td'); tdDt.textContent = dt;
+      const tdQ = document.createElement('td'); tdQ.textContent = l.q;
+      const tdA = document.createElement('td'); tdA.textContent = (l.a || '').slice(0, 200);
+      const tdTier = document.createElement('td');
+      const tierSpan = document.createElement('span');
+      // Allowlist tier values to prevent class injection
+      const safeTier = ['faq','cache','full','facts','offtopic','injection','capped','ip_capped'].includes(l.tier) ? l.tier : 'unknown';
+      tierSpan.className = 'tier tier-' + safeTier;
+      tierSpan.textContent = l.tier;
+      tdTier.appendChild(tierSpan);
+      const tdIp = document.createElement('td');
+      const ipCode = document.createElement('code'); ipCode.textContent = l.ip || '?';
+      tdIp.appendChild(ipCode);
+      const tdCached = document.createElement('td'); tdCached.textContent = l.cached ? 'yes' : 'no';
+      [tdDt, tdQ, tdA, tdTier, tdIp, tdCached].forEach(td => tr.appendChild(td));
       tb.appendChild(tr);
     });
     document.getElementById('tbl').style.display = '';

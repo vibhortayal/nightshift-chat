@@ -1,14 +1,20 @@
 """Admin endpoint: dump recent chatbot question logs.
 Password-protected via ADMIN_PASSWORD env var, passed as X-Admin-Password header.
 """
+import hashlib
+import hmac
 import json
 import os
+import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler
 
 KV_URL = os.environ.get("KV_REST_API_URL", "")
 KV_TOKEN = os.environ.get("KV_REST_API_TOKEN", "")
 ADMIN_PASSWORD = os.environ.get("ADMIN_PASSWORD", "")
+
+# Admin origin for CORS — same Vercel deployment serves the admin UI
+ADMIN_ORIGIN = "https://nightshift-chat-vibhor-t.vercel.app"
 
 
 def kv_call(*args):
@@ -31,9 +37,30 @@ class handler(BaseHTTPRequestHandler):
     def _send(self, code, data):
         self.send_response(code)
         self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
+        # Restrict CORS to the admin origin (same deployment serves the UI)
+        origin = self.headers.get("Origin", "")
+        if origin == ADMIN_ORIGIN:
+            self.send_header("Access-Control-Allow-Origin", origin)
         self.end_headers()
         self.wfile.write(json.dumps(data).encode())
+
+    def _check_auth(self):
+        """Constant-time password check with brute-force rate limiting."""
+        password = self.headers.get("X-Admin-Password", "")
+        if not ADMIN_PASSWORD:
+            return False
+        # Rate limit failed attempts: 10 per minute per IP
+        ip = self.headers.get("X-Forwarded-For", "unknown").split(",")[0].strip()
+        iphash = hashlib.md5(ip.encode()).hexdigest()[:12]
+        fail_key = f"chat:adminfail:{iphash}"
+        fails = kv_call("GET", fail_key)
+        if fails and int(fails) >= 10:
+            return False
+        ok = hmac.compare_digest(password, ADMIN_PASSWORD)
+        if not ok:
+            kv_call("INCR", fail_key)
+            kv_call("EXPIRE", fail_key, 60)
+        return ok
 
     def do_GET(self):
         self._handle()
@@ -43,8 +70,7 @@ class handler(BaseHTTPRequestHandler):
 
     def do_DELETE(self):
         """Clear all question logs. Password-protected."""
-        password = self.headers.get("X-Admin-Password", "")
-        if not ADMIN_PASSWORD or password != ADMIN_PASSWORD:
+        if not self._check_auth():
             self._send(401, {"error": "unauthorized"})
             return
 
@@ -70,14 +96,15 @@ class handler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.send_response(200)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        origin = self.headers.get("Origin", "")
+        if origin == ADMIN_ORIGIN:
+            self.send_header("Access-Control-Allow-Origin", origin)
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "X-Admin-Password, Content-Type")
         self.end_headers()
 
     def _handle(self):
-        password = self.headers.get("X-Admin-Password", "")
-        if not ADMIN_PASSWORD or password != ADMIN_PASSWORD:
+        if not self._check_auth():
             self._send(401, {"error": "unauthorized"})
             return
 
