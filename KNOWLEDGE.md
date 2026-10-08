@@ -56,10 +56,13 @@ The instruction or question you type to an AI. Better prompts → better answers
 ## Project glossary
 
 **What is Dark Factory?**
-Input: a written spec. Output: a working app. Dark Factory is a three-seat AI software factory on the BAND platform — you describe what you want, three AI seats (Architect, Implementer, Verifier) plan it, build it, and check it, with no further human input.
+Think of it like a robot assembly line for making apps. You describe what you want in plain English (like you'd tell ChatGPT), and three AI assistants work together to build it: one plans, one builds, one checks the work. Input: a written description. Output: a working app.
+
+**What is a stage?**
+A stage is one step in building the app — like chapters in a book. Dark Factory builds in 4 stages: first the basic backend, then the user interface, then fixes and improvements, then final polish. Each stage must pass checks before the next one starts.
 
 **What is a seat?**
-One AI role in the factory. Architect plans, Implementer builds, Verifier checks. Each seat is a separate AI agent with its own job.
+One AI assistant with a specific job on the team. Think of it like roles in a kitchen: one person plans the menu (Architect), one cooks (Implementer), one tastes and checks quality (Verifier). Each seat is a separate AI doing its part.
 
 **What is a run?**
 One complete factory execution: a single human message starts it, the three seats work through every stage autonomously, and a finished app (or a stopped run) comes out the other end.
@@ -77,7 +80,15 @@ A kids' pocket-money and savings app — the product Dark Factory built in its s
 2 hours 27 minutes, all four stages passing.
 
 **What is the hackathon?**
-The WeAreDevelopers x BAND hackathon (Sep 26 – Oct 5, 2026) — teams built autonomous AI factories on the BAND platform. Team Nightshift's entry was Dark Factory.
+The WeAreDevelopers x BAND hackathon (September 26 to October 5, 2026) — a competition where teams built AI systems that can work on their own. Think of it like a science fair for AI: teams had 10 days to build something impressive. It was fully online and open to everyone.
+Details: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon
+
+**What did Team Nightshift do?**
+At a high level: we taught AI assistants to build a complete app by themselves.
+
+Here's the simple version: You know how ChatGPT can answer questions? We took AI assistants like that and gave them tools to write code, check each other's work, and keep going until a finished app comes out. We built a "factory" of three AI assistants — one plans, one builds, one checks quality. Then we set them loose to build a real app (Pocketful, a kids' savings app) with almost no human help.
+
+The result: 4 stages, 2 hours 27 minutes, one working app. One human message started it; the AIs did the rest.
 
 ---
 

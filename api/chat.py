@@ -99,6 +99,7 @@ TOPIC_KEYWORDS = {
     "submit", "submission", "enroll", "enrollment",
     "eligibility", "eligible", "online",
     "license", "licensed",
+    "page", "website", "site", "webpage",
 } | BACKGROUND_KEYWORDS
 # Note: "vibhor" intentionally excluded — personal questions about Vibhor
 # (e.g. "what is vibhor's weakness") are out of scope and get the generic reply.
@@ -204,8 +205,9 @@ FAQS = [
      "A coding assistant helps you write code. Dark Factory is three AI seats that plan, build, and verify autonomously from one human message — no steering during the run.\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"how was the app checked", "app checked before submission", "how was it tested"},
      "The Verifier wrote black-box tests from the spec before seeing any code, ran supplied and own checks, and issued PASS/BLOCK per version. Five BLOCKs stops the run.\nMore: https://github.com/vibhortayal/nightshift-pocketful/blob/main/FACTORY.md"),
-    ({"what is nightshift", "what is team nightshift", "who is nightshift"},
-     "Team Nightshift is Vibhor's team of AI agents — a coding factory that built another coding factory (DarkFactory), which built the Pocketful app.\nMore: https://vibhortayal.github.io/nightshift/"),
+    ({"what is nightshift", "what is team nightshift", "who is nightshift", "what is this page about",
+      "what is this website about", "what is this site about", "what is this about"},
+     "Team Nightshift is Vibhor's team of AI assistants (like ChatGPT, but each with a specific job). They built Dark Factory — think of it as a robot assembly line for making apps. You describe what you want, and the AI team builds it step by step.\nMore: https://vibhortayal.github.io/nightshift/"),
     ({"what did you submit", "what was submitted"},
      "Team Nightshift submitted Dark Factory: a three-seat AI factory that built Pocketful (wallet/payments, Track 2) through 4 stages in 2h 27min.\nSubmission: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon/nightshift/dark-factory-built-by-nightshift"),
     ({"who was on team nightshift", "what did each member do", "team members and roles",
