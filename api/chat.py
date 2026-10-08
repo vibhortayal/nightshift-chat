@@ -17,7 +17,7 @@ except ImportError:
 ALLOWED_ORIGIN = "https://vibhortayal.github.io"
 
 # Bump on every deploy so we can tell which version is live
-CHAT_VERSION = "2026-10-07-19"
+CHAT_VERSION = "2026-10-07-20"
 
 # CONTEXT.md is bundled at deploy (read from disk) — bundle only, no URL fallback.
 # A push can never silently change what the bot says; it takes a redeploy.
@@ -159,7 +159,8 @@ def is_human_run_question(norm_q):
 
 
 OFFTOPIC_REPLY = ("I only answer questions about Team Nightshift, the Dark Factory, and the hackathon. "
-                  "Try asking about how the factory works, the seats, or the build. "
+                  "Try asking about how the factory works, the seats, or the Pocketful app. "
+                  "Try the live demo: https://pocketful.duckdns.org/ "
                   "Repo: https://github.com/vibhortayal/nightshift-pocketful "
                   "Submission: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon/nightshift/dark-factory-built-by-nightshift")
 
@@ -212,6 +213,9 @@ FAQS = [
     ({"give me a summary", "summarize", "summarise", "tldr", "give me the tldr", "brief overview",
       "i don't want to read", "dont want to read"},
      "Here's the step-by-step:\n\n**1. The hackathon:** WeAreDevelopers x BAND (Sept 26–Oct 5, 2026) — a 10-day online competition where teams built AI systems that work on their own. Think science fair for AI.\n\n**2. What we did:** Built Dark Factory — three AI assistants working as a team. One plans the app, one writes the code, one checks the work. We pointed them at building Pocketful (a wallet/payments app, like Venmo). One human message started it; the AIs did the rest in 4 stages over 2 hours 27 minutes.\n\n**3. Why it's useful:** It proves AI can build complete, working software with minimal human input — not just answer questions like ChatGPT, but actually do the work. That's a step toward AI handling real engineering tasks.\n\n**4. Key takeaways:** AI agents can collaborate effectively when given clear roles; verification matters as much as building; small, well-defined stages beat one big attempt; and the human's job shifts from doing to directing.\n\nMore: https://vibhortayal.github.io/nightshift/"),
+    ({"how does pocketful work", "how pocketful works", "what does pocketful do", "explain pocketful",
+      "how to use pocketful", "pocketful app how"},
+     "Pocketful is a wallet/payments app (like Venmo). You create a wallet, send money to people by their handle, request payments, split bills, and see your activity feed. Stage 2 added a browser UI with balance, pay, activity, requests, and splits. Stage 3 added payment corrections and statements. Stage 4 added refunds and batch corrections.\nTry it: https://pocketful.duckdns.org/\nCode: https://github.com/vibhortayal/nightshift-pocketful"),
     ({"what did you submit", "what was submitted"},
      "Team Nightshift submitted Dark Factory: a three-seat AI factory that built Pocketful (wallet/payments, Track 2) through 4 stages in 2h 27min.\nSubmission: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon/nightshift/dark-factory-built-by-nightshift"),
     ({"who was on team nightshift", "what did each member do", "team members and roles",
@@ -717,7 +721,7 @@ class handler(BaseHTTPRequestHandler):
             # v19 prefix: -18 — 3 FAQ chips (aliases for chips 2+3); -17 vibhor
             # topic-gate restore, N1/S6 fixes retained; cache v19 so cached
             # LLM answers for the two newly-FAQ'd questions can't shadow FAQ
-            cache_key = "chat:ans:v20:" + hashlib.md5(norm_q.encode()).hexdigest()
+            cache_key = "chat:ans:v21:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
@@ -755,15 +759,11 @@ class handler(BaseHTTPRequestHandler):
             exact = bool(words & TOPIC_KEYWORDS or any(k in joined for k in TOPIC_KEYWORDS))
             fuzzy = any(fuzzy_gate_match(w, TOPIC_KEYWORDS) for w in words)
             if not (exact or fuzzy):
-                strikes, blocked = check_strikes(ip)
-                if blocked:
-                    reply = "Sorry, I can't help you. Repo: https://github.com/vibhortayal/nightshift-pocketful Submission: https://lablab.ai/ai-hackathons/wearedevelopers-hackathon/nightshift/dark-factory-built-by-nightshift"
-                elif strikes >= 2:
-                    remaining = 5 - strikes
-                    reply = OFFTOPIC_REPLY + f"\n\nWarning {strikes} of 5: please stick to questions about the project. {remaining} more off-topic question{'s' if remaining > 1 else ''} and I won't be able to help further."
-                else:
-                    reply = OFFTOPIC_REPLY
-                log_question(question, "offtopic", True, reply, ip=ip)
+                # Off-topic: give the helpful redirect, but do NOT increment strikes.
+                # Strikes are for injection attempts only — a legitimate question
+                # that misses the keyword list should never be punished.
+                reply = OFFTOPIC_REPLY
+                log_question(question, "offtopic", False, reply, ip=ip)
                 self._send(200, {"answer": reply})
                 return
 
