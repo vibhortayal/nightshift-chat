@@ -55,8 +55,8 @@ def gate_allows(q):
 check("version header is 2026-10-07-20",
       chat.CHAT_VERSION == "2026-10-07-20", chat.CHAT_VERSION)
 src = open(os.path.join(HERE, "api", "chat.py")).read()
-check("cache namespace is chat:ans:v21:",
-      '"chat:ans:v21:"' in src)
+check("cache namespace is chat:ans:v22:",
+      '"chat:ans:v22:"' in src)
 
 # 1. N1 probe: "does the factory not use docker for builds" --------------
 n1 = "does the factory not use docker for builds"
@@ -190,8 +190,8 @@ def fake_kv(*args):
 
 chat.kv_call = fake_kv
 chat._mem_cache.clear()
-chat.cache_put("chat:ans:v21:fixture", "hello", ttl=60)
-check("mock-KV cache round trip", chat.cache_get("chat:ans:v21:fixture") == "hello")
+chat.cache_put("chat:ans:v22:fixture", "hello", ttl=60)
+check("mock-KV cache round trip", chat.cache_get("chat:ans:v22:fixture") == "hello")
 check("mock-KV healthy (PING->PONG)", chat.kv_healthy())
 chat.kv_call = orig_kv
 

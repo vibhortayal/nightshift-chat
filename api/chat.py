@@ -721,7 +721,7 @@ class handler(BaseHTTPRequestHandler):
             # v19 prefix: -18 — 3 FAQ chips (aliases for chips 2+3); -17 vibhor
             # topic-gate restore, N1/S6 fixes retained; cache v19 so cached
             # LLM answers for the two newly-FAQ'd questions can't shadow FAQ
-            cache_key = "chat:ans:v21:" + hashlib.md5(norm_q.encode()).hexdigest()
+            cache_key = "chat:ans:v22:" + hashlib.md5(norm_q.encode()).hexdigest()
 
             # 1. Persistent cache
             cached = cache_get(cache_key)
